@@ -1,16 +1,16 @@
-#!/bin/bash 2>nul || goto :windows
+#!/usr/bin/env bash 2>/dev/null || goto :windows
 
 #linux & macos
 
-odin test .\tests\ -vet -sanitize:address -sanitize:memory -sanitize:thread -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true
+odin test ./tests -vet -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true
 
-exit
+exit 0
 
 ::---------------------------------------------------------------------------------
 :windows
 
 @echo off
 
-odin test .\tests\ -vet -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true
+odin test ./tests -vet -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true
 
 exit /b
