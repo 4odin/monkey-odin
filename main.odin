@@ -14,25 +14,26 @@ main :: proc() {
 	fmt.printfln("Enter '%s' to exit", QUIT_CMD)
 
 	username := u.get_username()
-	fmt.print(u.get_username())
 	defer delete(username)
 
-	fmt.print(PROMPT)
+	for {
+		fmt.print(u.get_username())
+		fmt.print(PROMPT)
 
-	buf: [1024]byte
-	n, err := os.read(os.stdin, buf[:])
-	if err != nil {
-		fmt.eprintln("Error reading: ", err)
-		return
-	}
+		buf: [1024]byte
+		_, err := os.read(os.stdin, buf[:])
+		if err != nil {
+			fmt.eprintln("Error reading: ", err)
+			return
+		}
 
-	input := string(buf[:])
-	if (input[:len(QUIT_CMD)] == QUIT_CMD) do return
+		input := string(buf[:])
+		if (input[:len(QUIT_CMD)] == QUIT_CMD) do return
 
-	lexer := mp.lexer_new(&input)
-	defer free(lexer)
-
-	for tok := lexer->next_token(); tok.type != mp.TokenType.EOF; tok = lexer->next_token() {
-		fmt.printfln("%+v", tok)
+		lexer := mp.lexer_new(&input)
+		for tok := lexer->next_token(); tok.type != mp.TokenType.EOF; tok = lexer->next_token() {
+			fmt.printfln("%+v", tok)
+		}
+		free(lexer)
 	}
 }
