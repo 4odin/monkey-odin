@@ -1,6 +1,6 @@
 package tests
 
-import mp "../monkey_parser"
+import mp "../parser"
 
 import "core:log"
 import "core:testing"

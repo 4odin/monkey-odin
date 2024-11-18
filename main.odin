@@ -3,7 +3,7 @@ package monkey_odin
 import "core:fmt"
 import "core:os"
 
-import mp "./monkey_parser"
+import mp "./parser"
 import u "./utils"
 
 PROMPT :: "> "
