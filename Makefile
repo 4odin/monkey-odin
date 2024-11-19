@@ -12,4 +12,4 @@ run:
 	odin run . $(ARGS_DBG) -out:$(EXE_NAME)
 
 test:
-	odin test ./tests $(ARGS_DBG) -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true
+	odin test ./tests -vet -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true

@@ -25,7 +25,7 @@
 		{
 			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
 			"name": "Odin Test",
-			"shell_cmd": "odin test ./tests -vet -debug -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true",
+			"shell_cmd": "odin test ./tests -vet -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true",
 		}
 	],
 	"settings":
