@@ -1,54 +1,54 @@
 package monkey_parser
 
-TokenType :: enum {
-	ILLIGAL,
+Token_Type :: enum {
+	Illigal,
 	EOF,
 
 	// Identifier + literals
-	IDENT,
-	INT,
+	Identifier,
+	Int,
 
 	// Operators
-	ASSIGN,
-	PLUS,
-	MINUS,
-	BANG,
-	ASTERISK,
-	SLASH,
-	LT,
-	GT,
-	EQ,
-	NOT_EQ,
+	Assign,
+	Plus,
+	Minus,
+	Bang,
+	Asterisk,
+	Slash,
+	Less_Than,
+	Greater_Than,
+	Equal,
+	Not_Equal,
 
 	// Delimiters
-	COMMA,
-	SEMICOLON,
+	Comma,
+	Semicolon,
 
 	// Groups
-	LPAREN,
-	RPAREN,
-	LBRACE,
-	RBRACE,
+	Left_Paren,
+	Right_Paren,
+	Left_Brace,
+	Right_Brace,
 
 	// Keywords
-	FUNCTION,
-	LET,
-	TRUE,
-	FALSE,
-	IF,
-	ELSE,
-	RETURN,
+	Function,
+	Let,
+	True,
+	False,
+	If,
+	Else,
+	Return,
 }
 
 Token :: struct {
-	type:   TokenType,
+	type:   Token_Type,
 	input:  ^string,
 	start:  int,
 	end:    int,
 	length: int,
 }
 
-token_create :: proc(type: TokenType, input: ^string, start: int, length: int) -> Token {
+token_create :: proc(type: Token_Type, input: ^string, start: int, length: int) -> Token {
 	return {type, input, start, start + length, length}
 }
 
@@ -56,24 +56,24 @@ token_create :: proc(type: TokenType, input: ^string, start: int, length: int) -
 update_type_if_keyword :: proc(tok: ^Token) {
 	switch (tok.input[tok.start:tok.end]) {
 	case "fn":
-		tok.type = .FUNCTION
+		tok.type = .Function
 
 	case "let":
-		tok.type = .LET
+		tok.type = .Let
 
 	case "true":
-		tok.type = .TRUE
+		tok.type = .True
 
 	case "false":
-		tok.type = .FALSE
+		tok.type = .False
 
 	case "if":
-		tok.type = .IF
+		tok.type = .If
 
 	case "else":
-		tok.type = .ELSE
+		tok.type = .Else
 
 	case "return":
-		tok.type = .RETURN
+		tok.type = .Return
 	}
 }
