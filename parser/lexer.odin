@@ -6,7 +6,8 @@ Lexer :: struct {
 	read_pos:   int,
 	ch:         u8,
 
-	// functions
+	// methods
+	init:       proc(l: ^Lexer, input: ^string),
 	next_token: proc(l: ^Lexer) -> Token,
 }
 
@@ -53,7 +54,7 @@ create_identifier :: proc(l: ^Lexer) -> Token {
 
 	for is_letter(l.ch) do read_char(l)
 
-	return token_create(TokenType.IDENT, l.input, start, l.pos - start)
+	return token_create(.IDENT, l.input, start, l.pos - start)
 }
 
 @(private = "file")
@@ -62,9 +63,18 @@ create_number :: proc(l: ^Lexer) -> Token {
 
 	for is_digit(l.ch) do read_char(l)
 
-	return token_create(TokenType.INT, l.input, start, l.pos - start)
+	return token_create(.INT, l.input, start, l.pos - start)
 }
 
+@(private = "file")
+init :: proc(l: ^Lexer, input: ^string) {
+	l.ch = 0
+	l.input = input
+	l.pos = 0
+	l.read_pos = 0
+
+	read_char(l)
+}
 
 @(private = "file")
 next_token :: proc(l: ^Lexer) -> Token {
@@ -77,55 +87,55 @@ next_token :: proc(l: ^Lexer) -> Token {
 		if peek_char(l) == '=' {
 			start := l.pos
 			read_char(l)
-			tok = token_create(TokenType.EQ, l.input, start, 2)
-		} else do tok = create_single_letter_tok(l, TokenType.ASSIGN)
+			tok = token_create(.EQ, l.input, start, 2)
+		} else do tok = create_single_letter_tok(l, .ASSIGN)
 
 	case '+':
-		tok = create_single_letter_tok(l, TokenType.PLUS)
+		tok = create_single_letter_tok(l, .PLUS)
 
 	case '-':
-		tok = create_single_letter_tok(l, TokenType.MINUS)
+		tok = create_single_letter_tok(l, .MINUS)
 
 	case '!':
 		if peek_char(l) == '=' {
 			start := l.pos
 			read_char(l)
-			tok = token_create(TokenType.NOT_EQ, l.input, start, 2)
-		} else do tok = create_single_letter_tok(l, TokenType.BANG)
+			tok = token_create(.NOT_EQ, l.input, start, 2)
+		} else do tok = create_single_letter_tok(l, .BANG)
 
 	case '/':
-		tok = create_single_letter_tok(l, TokenType.SLASH)
+		tok = create_single_letter_tok(l, .SLASH)
 
 	case '*':
-		tok = create_single_letter_tok(l, TokenType.ASTERISK)
+		tok = create_single_letter_tok(l, .ASTERISK)
 
 	case '<':
-		tok = create_single_letter_tok(l, TokenType.LT)
+		tok = create_single_letter_tok(l, .LT)
 
 	case '>':
-		tok = create_single_letter_tok(l, TokenType.GT)
+		tok = create_single_letter_tok(l, .GT)
 
 	case ';':
-		tok = create_single_letter_tok(l, TokenType.SEMICOLON)
+		tok = create_single_letter_tok(l, .SEMICOLON)
 
 	case ',':
-		tok = create_single_letter_tok(l, TokenType.COMMA)
+		tok = create_single_letter_tok(l, .COMMA)
 
 	case '(':
-		tok = create_single_letter_tok(l, TokenType.LPAREN)
+		tok = create_single_letter_tok(l, .LPAREN)
 
 	case ')':
-		tok = create_single_letter_tok(l, TokenType.RPAREN)
+		tok = create_single_letter_tok(l, .RPAREN)
 
 	case '{':
-		tok = create_single_letter_tok(l, TokenType.LBRACE)
+		tok = create_single_letter_tok(l, .LBRACE)
 
 	case '}':
-		tok = create_single_letter_tok(l, TokenType.RBRACE)
+		tok = create_single_letter_tok(l, .RBRACE)
 
 	case 0:
 		tok.length = 0
-		tok.type = TokenType.EOF
+		tok.type = .EOF
 
 	case:
 		if is_letter(l.ch) {
@@ -135,7 +145,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 			return tok
 		} else if is_digit(l.ch) do return create_number(l)
 
-		tok = create_single_letter_tok(l, TokenType.ILLIGAL)
+		tok = create_single_letter_tok(l, .ILLIGAL)
 	}
 
 	read_char(l)
@@ -143,14 +153,6 @@ next_token :: proc(l: ^Lexer) -> Token {
 	return tok
 }
 
-
-lexer_new :: proc(input: ^string) -> ^Lexer {
-	l := new(Lexer)
-	l.input = input
-
-	l.next_token = next_token
-
-	read_char(l)
-
-	return l
+lexer_create :: proc() -> Lexer {
+	return {next_token = next_token, init = init}
 }

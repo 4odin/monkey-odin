@@ -49,31 +49,31 @@ Token :: struct {
 }
 
 token_create :: proc(type: TokenType, input: ^string, start: int, length: int) -> Token {
-	return Token{type, input, start, start + length, length}
+	return {type, input, start, start + length, length}
 }
 
 @(private = "package")
 update_type_if_keyword :: proc(tok: ^Token) {
 	switch (tok.input[tok.start:tok.end]) {
 	case "fn":
-		tok.type = TokenType.FUNCTION
+		tok.type = .FUNCTION
 
 	case "let":
-		tok.type = TokenType.LET
+		tok.type = .LET
 
 	case "true":
-		tok.type = TokenType.TRUE
+		tok.type = .TRUE
 
 	case "false":
-		tok.type = TokenType.FALSE
+		tok.type = .FALSE
 
 	case "if":
-		tok.type = TokenType.IF
+		tok.type = .IF
 
 	case "else":
-		tok.type = TokenType.ELSE
+		tok.type = .ELSE
 
 	case "return":
-		tok.type = TokenType.RETURN
+		tok.type = .RETURN
 	}
 }

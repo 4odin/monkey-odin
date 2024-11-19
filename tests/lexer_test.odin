@@ -34,110 +34,110 @@ if 5 < 10 {
 		expected_type:    mp.TokenType,
 		expected_literal: string,
 	} {
-		{mp.TokenType.LET, "let"},
-		{mp.TokenType.IDENT, "five"},
-		{mp.TokenType.ASSIGN, "="},
-		{mp.TokenType.INT, "5"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.LET, "let"},
+		{.IDENT, "five"},
+		{.ASSIGN, "="},
+		{.INT, "5"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.LET, "let"},
-		{mp.TokenType.IDENT, "ten"},
-		{mp.TokenType.ASSIGN, "="},
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.LET, "let"},
+		{.IDENT, "ten"},
+		{.ASSIGN, "="},
+		{.INT, "10"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.LET, "let"},
-		{mp.TokenType.IDENT, "add"},
-		{mp.TokenType.ASSIGN, "="},
-		{mp.TokenType.FUNCTION, "fn"},
-		{mp.TokenType.LPAREN, "("},
-		{mp.TokenType.IDENT, "x"},
-		{mp.TokenType.COMMA, ","},
-		{mp.TokenType.IDENT, "y"},
-		{mp.TokenType.RPAREN, ")"},
-		{mp.TokenType.LBRACE, "{"},
-		{mp.TokenType.IDENT, "x"},
-		{mp.TokenType.PLUS, "+"},
-		{mp.TokenType.IDENT, "y"},
-		{mp.TokenType.SEMICOLON, ";"},
-		{mp.TokenType.RBRACE, "}"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.LET, "let"},
+		{.IDENT, "add"},
+		{.ASSIGN, "="},
+		{.FUNCTION, "fn"},
+		{.LPAREN, "("},
+		{.IDENT, "x"},
+		{.COMMA, ","},
+		{.IDENT, "y"},
+		{.RPAREN, ")"},
+		{.LBRACE, "{"},
+		{.IDENT, "x"},
+		{.PLUS, "+"},
+		{.IDENT, "y"},
+		{.SEMICOLON, ";"},
+		{.RBRACE, "}"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.LET, "let"},
-		{mp.TokenType.IDENT, "result"},
-		{mp.TokenType.ASSIGN, "="},
-		{mp.TokenType.IDENT, "add"},
-		{mp.TokenType.LPAREN, "("},
-		{mp.TokenType.IDENT, "five"},
-		{mp.TokenType.COMMA, ","},
-		{mp.TokenType.IDENT, "ten"},
-		{mp.TokenType.RPAREN, ")"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.LET, "let"},
+		{.IDENT, "result"},
+		{.ASSIGN, "="},
+		{.IDENT, "add"},
+		{.LPAREN, "("},
+		{.IDENT, "five"},
+		{.COMMA, ","},
+		{.IDENT, "ten"},
+		{.RPAREN, ")"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.BANG, "!"},
-		{mp.TokenType.MINUS, "-"},
-		{mp.TokenType.SLASH, "/"},
-		{mp.TokenType.ASTERISK, "*"},
-		{mp.TokenType.INT, "5"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.BANG, "!"},
+		{.MINUS, "-"},
+		{.SLASH, "/"},
+		{.ASTERISK, "*"},
+		{.INT, "5"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.INT, "5"},
-		{mp.TokenType.LT, "<"},
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.GT, ">"},
-		{mp.TokenType.INT, "5"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.INT, "5"},
+		{.LT, "<"},
+		{.INT, "10"},
+		{.GT, ">"},
+		{.INT, "5"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.IF, "if"},
-		{mp.TokenType.INT, "5"},
-		{mp.TokenType.LT, "<"},
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.LBRACE, "{"},
+		{.IF, "if"},
+		{.INT, "5"},
+		{.LT, "<"},
+		{.INT, "10"},
+		{.LBRACE, "{"},
 
 		//
-		{mp.TokenType.RETURN, "return"},
-		{mp.TokenType.TRUE, "true"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.RETURN, "return"},
+		{.TRUE, "true"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.RBRACE, "}"},
-		{mp.TokenType.ELSE, "else"},
-		{mp.TokenType.LBRACE, "{"},
+		{.RBRACE, "}"},
+		{.ELSE, "else"},
+		{.LBRACE, "{"},
 
 		//
-		{mp.TokenType.RETURN, "return"},
-		{mp.TokenType.FALSE, "false"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.RETURN, "return"},
+		{.FALSE, "false"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.RBRACE, "}"},
+		{.RBRACE, "}"},
 
 		//
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.EQ, "=="},
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.INT, "10"},
+		{.EQ, "=="},
+		{.INT, "10"},
+		{.SEMICOLON, ";"},
 
 		//
-		{mp.TokenType.INT, "10"},
-		{mp.TokenType.NOT_EQ, "!="},
-		{mp.TokenType.INT, "9"},
-		{mp.TokenType.SEMICOLON, ";"},
+		{.INT, "10"},
+		{.NOT_EQ, "!="},
+		{.INT, "9"},
+		{.SEMICOLON, ";"},
 
 		// end of file
-		{mp.TokenType.EOF, ""},
+		{.EOF, ""},
 
 		// end of test cases
 	}
 
-	l := mp.lexer_new(&input)
-	defer free(l)
+	l := mp.lexer_create()
+	l->init(&input)
 
 	for test_case, i in tests {
 		tok := l->next_token()
