@@ -2,6 +2,7 @@ package monkey_parser
 
 import "core:fmt"
 import "core:mem"
+import "core:strconv"
 
 import s "core:strings"
 
@@ -36,7 +37,7 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Illigal      = nil,
 	.EOF          = nil,
 	.Identifier   = parse_identifier,
-	.Int          = nil,
+	.Int          = parse_integer_expression,
 	.Assign       = nil,
 	.Plus         = nil,
 	.Minus        = nil,
@@ -114,6 +115,24 @@ next_token :: proc(p: ^Parser) {
 @(private = "file")
 parse_identifier :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	return Node_Identifier{p.cur_token.input[p.cur_token.start:p.cur_token.end]}
+}
+
+@(private = "file")
+parse_integer_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	value, ok := strconv.parse_int(p.l.input[p.cur_token.start:p.cur_token.end])
+	if !ok {
+		msg := s.builder_make(p.allocator)
+
+		fmt.sbprintf(
+			&msg,
+			"could not parse %q as integer",
+			p.l.input[p.cur_token.start:p.cur_token.end],
+		)
+		append(&p.errors, s.to_string(msg))
+		return nil
+	}
+
+	return value
 }
 
 @(private = "file")
