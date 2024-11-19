@@ -1,0 +1,42 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+		},
+	],
+	"build_systems":
+	[
+		{
+			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
+			"name": "Odin Build Debug",
+			"shell_cmd": "odin build . -vet -debug -out:$file_base_name.exe",
+		},
+		{
+			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
+			"name": "Odin Build Release",
+			"shell_cmd": "odin build . -vet -no-bounds-check -out:$file_base_name.exe",
+		},
+		{
+			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
+			"name": "Odin Run",
+			"shell_cmd": "odin run . -vet -debug -out:$file_base_name.exe",
+		},
+		{
+			"file_regex": "^(.+)\\(([0-9]+):([0-9]+)\\) (.+)$",
+			"name": "Odin Test",
+			"shell_cmd": "odin test ./tests -vet -debug -sanitize:address -define:ODIN_TEST_SHORT_LOGS=false -define:ODIN_TEST_ALWAYS_REPORT_MEMORY=true",
+		}
+	],
+	"settings":
+	{
+		"auto_complete": true,
+		"LSP":
+		{
+			"odin":
+			{
+				"enabled": true,
+			},
+		},
+	},
+}
