@@ -52,7 +52,7 @@ token_create :: proc(type: TokenType, input: ^string, start: int, length: int) -
 	return {type, input, start, start + length, length}
 }
 
-@(private = "package")
+@(private)
 update_type_if_keyword :: proc(tok: ^Token) {
 	switch (tok.input[tok.start:tok.end]) {
 	case "fn":
