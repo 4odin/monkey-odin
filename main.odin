@@ -7,6 +7,8 @@ import "core:os"
 import mp "./parser"
 import u "./utils"
 
+_ :: mem
+
 PROMPT :: "> "
 QUIT_CMD :: ":q"
 
@@ -39,6 +41,7 @@ main :: proc() {
 	fmt.printfln("Enter '%s' to exit", QUIT_CMD)
 
 	username := u.get_username(context.temp_allocator)
+	defer free_all(context.temp_allocator)
 
 	lexer := mp.lexer_create()
 
@@ -61,6 +64,4 @@ main :: proc() {
 			fmt.printfln("%+v", tok)
 		}
 	}
-
-	free_all(context.temp_allocator)
 }

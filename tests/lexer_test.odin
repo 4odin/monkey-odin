@@ -30,7 +30,7 @@ if 5 < 10 {
     `
 
 
-	tests := []struct {
+	tests := [?]struct {
 		expected_type:    mp.Token_Type,
 		expected_literal: string,
 	} {
