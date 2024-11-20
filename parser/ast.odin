@@ -3,7 +3,7 @@ package monkey_parser
 import "core:fmt"
 import s "core:strings"
 
-Monkey_Data :: union {
+Monkey_Value :: union {
 	// Basics
 	int,
 	bool,
@@ -23,6 +23,15 @@ Monkey_Data :: union {
 	Node_Function_Literal,
 	Node_Call_Expression,
 	Node_Index_Expression,
+}
+
+Monkey_Data :: struct {
+	type: typeid,
+	v:    Monkey_Value,
+}
+
+monkey_data :: proc(t: typeid, v: Monkey_Value) -> Monkey_Data {
+	return {t, v}
 }
 
 // ***************************************************************************************
@@ -89,7 +98,7 @@ Node_Index_Expression :: struct {
 }
 
 ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
-	#partial switch data in ast {
+	#partial switch data in ast.v {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
 

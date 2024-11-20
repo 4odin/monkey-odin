@@ -43,7 +43,7 @@ main :: proc() {
 	username := u.get_username(context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	lexer := mp.lexer_create()
+	lexer := mp.lexer()
 
 	for {
 		fmt.print(username)
@@ -56,10 +56,9 @@ main :: proc() {
 			return
 		}
 
-		input := string(buf[:])
-		if (input[:len(QUIT_CMD)] == QUIT_CMD) do return
+		if (string(buf[:])[:len(QUIT_CMD)] == QUIT_CMD) do return
 
-		lexer->init(&input)
+		lexer->init(buf[:])
 		for tok := lexer->next_token(); tok.type != .EOF; tok = lexer->next_token() {
 			fmt.printfln("%+v", tok)
 		}

@@ -1,15 +1,23 @@
 package monkey_parser
 
 Lexer :: struct {
-	input:      ^string,
+	input:      []u8,
 	pos:        int,
 	read_pos:   int,
 	ch:         u8,
 
 	// methods
-	init:       proc(l: ^Lexer, input: ^string),
+	init:       proc(l: ^Lexer, input: []u8),
 	next_token: proc(l: ^Lexer) -> Token,
 }
+
+lexer :: proc() -> Lexer {
+	return {next_token = next_token, init = init}
+}
+
+// ***************************************************************************************
+// PRIVATE PROCEDURES
+// ***************************************************************************************
 
 @(private = "file")
 is_letter :: proc(ch: u8) -> bool {
@@ -67,7 +75,7 @@ create_number :: proc(l: ^Lexer) -> Token {
 }
 
 @(private = "file")
-init :: proc(l: ^Lexer, input: ^string) {
+init :: proc(l: ^Lexer, input: []u8) {
 	l.ch = 0
 	l.input = input
 	l.pos = 0
@@ -134,7 +142,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 		tok = create_single_letter_tok(l, .Right_Brace)
 
 	case 0:
-		tok.length = 0
+		tok.input = {}
 		tok.type = .EOF
 
 	case:
@@ -151,8 +159,4 @@ next_token :: proc(l: ^Lexer) -> Token {
 	read_char(l)
 
 	return tok
-}
-
-lexer_create :: proc() -> Lexer {
-	return {next_token = next_token, init = init}
 }

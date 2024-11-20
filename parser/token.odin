@@ -41,20 +41,17 @@ Token_Type :: enum {
 }
 
 Token :: struct {
-	type:   Token_Type,
-	input:  ^string,
-	start:  int,
-	end:    int,
-	length: int,
+	type:  Token_Type,
+	input: []u8,
 }
 
-token_create :: proc(type: Token_Type, input: ^string, start: int, length: int) -> Token {
-	return {type, input, start, start + length, length}
+token_create :: proc(type: Token_Type, input: []u8, start: int, length: int) -> Token {
+	return {type, input[start:start + length]}
 }
 
 @(private)
 update_type_if_keyword :: proc(tok: ^Token) {
-	switch (tok.input[tok.start:tok.end]) {
+	switch (transmute(string)(tok.input)) {
 	case "fn":
 		tok.type = .Function
 

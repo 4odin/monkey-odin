@@ -17,9 +17,9 @@ parser_has_error :: proc(p: ^mp.Parser) -> bool {
 }
 
 stmt_is_let :: proc(s: mp.Monkey_Data, name: string) -> bool {
-	let_stmt, ok := s.(mp.Node_Let_Statement)
-	if !ok {
-		log.errorf("s is not a let statement. got='%T'", s)
+	let_stmt, ok := s.v.(mp.Node_Let_Statement)
+	if !ok || s.type != mp.Node_Let_Statement {
+		log.errorf("s is not a let statement. got='%v'", s.type)
 		return false
 	}
 
@@ -41,11 +41,11 @@ let foobar = 838383;
     `
 
 
-	p := mp.parser_create()
-	p->init(&input, context.temp_allocator)
+	p := mp.parser()
+	p->init(transmute([]u8)input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	program := mp.parse_program(&p)
+	program := p->parse()
 
 	if parser_has_error(&p) {
 		testing.fail(t)
@@ -85,11 +85,11 @@ return 993322;
     `
 
 
-	p := mp.parser_create()
-	p->init(&input, context.temp_allocator)
+	p := mp.parser()
+	p->init(transmute([]u8)input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	program := mp.parse_program(&p)
+	program := p->parse()
 
 	if parser_has_error(&p) {
 		testing.fail(t)
@@ -112,9 +112,9 @@ return 993322;
 
 	for _, i in tests {
 		stmt := program.statements[i]
-		_, ok := stmt.(mp.Node_Return_Statement)
-		if !ok {
-			log.errorf("test [%d]: stmt is not a return statement. got='%T'", i, stmt)
+		_, ok := stmt.v.(mp.Node_Return_Statement)
+		if !ok || stmt.type != mp.Node_Return_Statement {
+			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, stmt.type)
 			continue
 		}
 	}
@@ -124,11 +124,11 @@ return 993322;
 test_identifier_expression :: proc(t: ^testing.T) {
 	input := "foobar;"
 
-	p := mp.parser_create()
-	p->init(&input, context.temp_allocator)
+	p := mp.parser()
+	p->init(transmute([]u8)input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	program := mp.parse_program(&p)
+	program := p->parse()
 
 	if parser_has_error(&p) {
 		testing.fail(t)
@@ -145,10 +145,12 @@ test_identifier_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	ident, ok := program.statements[0].(mp.Node_Identifier)
-
-	if !ok {
-		log.errorf("program.statements[0] is not Node_Identifier, got='%T'", program.statements[0])
+	ident, ok := program.statements[0].v.(mp.Node_Identifier)
+	if !ok || program.statements[0].type != mp.Node_Identifier {
+		log.errorf(
+			"program.statements[0] is not Node_Identifier, got='%v'",
+			program.statements[0].type,
+		)
 		testing.fail(t)
 		return
 	}
@@ -164,11 +166,11 @@ test_identifier_expression :: proc(t: ^testing.T) {
 test_integer_literal :: proc(t: ^testing.T) {
 	input := "5;"
 
-	p := mp.parser_create()
-	p->init(&input, context.temp_allocator)
+	p := mp.parser()
+	p->init(transmute([]u8)input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	program := mp.parse_program(&p)
+	program := p->parse()
 
 	if parser_has_error(&p) {
 		testing.fail(t)
@@ -185,10 +187,9 @@ test_integer_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	value, ok := program.statements[0].(int)
-
-	if !ok {
-		log.errorf("program.statements[0] is not int, got='%T'", program.statements[0])
+	value, ok := program.statements[0].v.(int)
+	if !ok || program.statements[0].type != int {
+		log.errorf("program.statements[0] is not 'int', got='%v'", program.statements[0].type)
 		testing.fail(t)
 		return
 	}

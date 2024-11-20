@@ -136,8 +136,8 @@ if 5 < 10 {
 		// end of test cases
 	}
 
-	l := mp.lexer_create()
-	l->init(&input)
+	l := mp.lexer()
+	l->init(transmute([]u8)input)
 
 	for test_case, i in tests {
 		tok := l->next_token()
@@ -152,12 +152,12 @@ if 5 < 10 {
 			testing.fail(t)
 		}
 
-		if input[tok.start:tok.end] != test_case.expected_literal {
+		if transmute(string)tok.input != test_case.expected_literal {
 			log.errorf(
 				"tests[%d] - literal wrong. expected='%s', got='%s'",
 				i,
 				test_case.expected_literal,
-				input[tok.start:tok.end],
+				transmute(string)tok.input,
 			)
 			testing.fail(t)
 		}

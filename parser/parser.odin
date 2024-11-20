@@ -6,16 +6,6 @@ import "core:strconv"
 
 import s "core:strings"
 
-Precedence :: enum {
-	Lowest,
-	Equals,
-	Less_Greater,
-	Sum,
-	Product,
-	Prefix,
-	Call,
-}
-
 Parser :: struct {
 	l:          Lexer,
 	cur_token:  Token,
@@ -26,10 +16,33 @@ Parser :: struct {
 	errors:     [dynamic]string,
 
 	// methods
-	init:       proc(p: ^Parser, input: ^string, allocator := context.allocator),
+	init:       proc(p: ^Parser, input: []u8, allocator := context.allocator),
+	parse:      proc(p: ^Parser) -> Node_Program,
 }
 
+parser :: proc() -> Parser {
+	return {l = lexer(), init = init, parse = parse_program}
+}
+
+// ***************************************************************************************
+// PRIVATE TYPES AND PROCEDURES
+// ***************************************************************************************
+
+@(private = "file")
+Precedence :: enum {
+	Lowest,
+	Equals,
+	Less_Greater,
+	Sum,
+	Product,
+	Prefix,
+	Call,
+}
+
+@(private = "file")
 Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Maybe(Monkey_Data)
+
+@(private = "file")
 Infix_Parse_Fn :: #type proc(p: ^Parser, expr: Monkey_Data) -> Maybe(Monkey_Data)
 
 @(private = "file")
@@ -97,7 +110,7 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
-init :: proc(p: ^Parser, input: ^string, allocator := context.allocator) {
+init :: proc(p: ^Parser, input: []u8, allocator := context.allocator) {
 	p.l->init(input)
 	p.allocator = allocator
 	p.errors = make([dynamic]string, allocator)
@@ -114,25 +127,21 @@ next_token :: proc(p: ^Parser) {
 
 @(private = "file")
 parse_identifier :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
-	return Node_Identifier{p.cur_token.input[p.cur_token.start:p.cur_token.end]}
+	return monkey_data(Node_Identifier, Node_Identifier{transmute(string)p.cur_token.input})
 }
 
 @(private = "file")
 parse_integer_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
-	value, ok := strconv.parse_int(p.l.input[p.cur_token.start:p.cur_token.end])
+	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
 	if !ok {
 		msg := s.builder_make(p.allocator)
 
-		fmt.sbprintf(
-			&msg,
-			"could not parse %q as integer",
-			p.l.input[p.cur_token.start:p.cur_token.end],
-		)
+		fmt.sbprintf(&msg, "could not parse %s as integer", p.l.input)
 		append(&p.errors, s.to_string(msg))
 		return nil
 	}
 
-	return value
+	return monkey_data(int, value)
 }
 
 @(private = "file")
@@ -141,14 +150,14 @@ parse_let_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 
 	if !expect_peek(p, .Identifier) do return nil
 
-	stmt.name, _ = s.substring(p.l.input^, p.cur_token.start, p.cur_token.end)
+	stmt.name = transmute(string)p.cur_token.input
 
 	if !expect_peek(p, .Assign) do return nil
 
 	// todo:: will be completed
 	for !current_token_is(p, .Semicolon) do next_token(p)
 
-	return stmt
+	return monkey_data(Node_Let_Statement, stmt)
 }
 
 @(private = "file")
@@ -160,7 +169,7 @@ parse_return_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	// todo:: will be completed
 	for !current_token_is(p, .Semicolon) do next_token(p)
 
-	return stmt
+	return monkey_data(Node_Return_Statement, stmt)
 }
 
 @(private = "file")
@@ -199,10 +208,7 @@ parse_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	return nil
 }
 
-parser_create :: proc() -> Parser {
-	return {l = lexer_create(), init = init}
-}
-
+@(private = "file")
 parse_program :: proc(p: ^Parser) -> Node_Program {
 	program := Node_Program{}
 	program.statements = make([dynamic]Monkey_Data, p.allocator)
