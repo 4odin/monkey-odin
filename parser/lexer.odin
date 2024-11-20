@@ -7,7 +7,7 @@ Lexer :: struct {
 	ch:         u8,
 
 	// methods
-	init:       proc(l: ^Lexer, input: []u8),
+	init:       proc(l: ^Lexer, input: string),
 	next_token: proc(l: ^Lexer) -> Token,
 }
 
@@ -75,9 +75,9 @@ create_number :: proc(l: ^Lexer) -> Token {
 }
 
 @(private = "file")
-init :: proc(l: ^Lexer, input: []u8) {
+init :: proc(l: ^Lexer, input: string) {
 	l.ch = 0
-	l.input = input
+	l.input = transmute([]u8)input
 	l.pos = 0
 	l.read_pos = 0
 

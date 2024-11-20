@@ -16,7 +16,7 @@ Parser :: struct {
 	errors:     [dynamic]string,
 
 	// methods
-	init:       proc(p: ^Parser, input: []u8, allocator := context.allocator),
+	init:       proc(p: ^Parser, input: string, allocator := context.allocator),
 	parse:      proc(p: ^Parser) -> Node_Program,
 }
 
@@ -110,7 +110,7 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
-init :: proc(p: ^Parser, input: []u8, allocator := context.allocator) {
+init :: proc(p: ^Parser, input: string, allocator := context.allocator) {
 	p.l->init(input)
 	p.allocator = allocator
 	p.errors = make([dynamic]string, allocator)

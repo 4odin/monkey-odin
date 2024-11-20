@@ -137,7 +137,7 @@ if 5 < 10 {
 	}
 
 	l := mp.lexer()
-	l->init(transmute([]u8)input)
+	l->init(input)
 
 	for test_case, i in tests {
 		tok := l->next_token()

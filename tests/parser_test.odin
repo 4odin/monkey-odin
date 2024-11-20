@@ -42,7 +42,7 @@ let foobar = 838383;
 
 
 	p := mp.parser()
-	p->init(transmute([]u8)input, context.temp_allocator)
+	p->init(input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
 	program := p->parse()
@@ -86,7 +86,7 @@ return 993322;
 
 
 	p := mp.parser()
-	p->init(transmute([]u8)input, context.temp_allocator)
+	p->init(input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
 	program := p->parse()
@@ -125,7 +125,7 @@ test_identifier_expression :: proc(t: ^testing.T) {
 	input := "foobar;"
 
 	p := mp.parser()
-	p->init(transmute([]u8)input, context.temp_allocator)
+	p->init(input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
 	program := p->parse()
@@ -167,7 +167,7 @@ test_integer_literal :: proc(t: ^testing.T) {
 	input := "5;"
 
 	p := mp.parser()
-	p->init(transmute([]u8)input, context.temp_allocator)
+	p->init(input, context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
 	program := p->parse()

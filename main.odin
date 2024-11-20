@@ -56,9 +56,11 @@ main :: proc() {
 			return
 		}
 
-		if (string(buf[:])[:len(QUIT_CMD)] == QUIT_CMD) do return
+		input := string(buf[:])
 
-		lexer->init(buf[:])
+		if input[:len(QUIT_CMD)] == QUIT_CMD do return
+
+		lexer->init(input)
 		for tok := lexer->next_token(); tok.type != .EOF; tok = lexer->next_token() {
 			fmt.printfln("%+v", tok)
 		}
