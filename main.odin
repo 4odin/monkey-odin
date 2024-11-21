@@ -3,6 +3,7 @@ package monkey_odin
 import "core:fmt"
 import "core:mem"
 import "core:os"
+import s "core:strings"
 
 import mp "./parser"
 import u "./utils"
@@ -13,6 +14,7 @@ PROMPT :: "> "
 QUIT_CMD :: ":q"
 
 main :: proc() {
+	parser := mp.parser()
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
@@ -34,6 +36,10 @@ main :: proc() {
 			}
 
 			mem.tracking_allocator_destroy(&track)
+
+			if parser._arena.total_used != 0 {
+				fmt.eprintfln("parser has unfreed memory: %v", parser._arena.total_used)
+			}
 		}
 	}
 
@@ -43,7 +49,8 @@ main :: proc() {
 	username := u.get_username(context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	lexer := mp.lexer()
+	parser->config()
+	defer parser->free()
 
 	for {
 		fmt.print(username)
@@ -60,9 +67,17 @@ main :: proc() {
 
 		if input[:len(QUIT_CMD)] == QUIT_CMD do return
 
-		lexer->init(input)
-		for tok := lexer->next_token(); tok.type != .EOF; tok = lexer->next_token() {
-			fmt.printfln("%+v", tok)
+		prog := parser->parse(input)
+		if len(parser.errors) > 0 {
+			fmt.println("error")
+			continue
 		}
+
+		program := mp.Monkey_Data(prog)
+
+		sb := s.builder_make(context.temp_allocator)
+		mp.ast_to_string(&program, &sb)
+
+		fmt.println(s.to_string(sb))
 	}
 }
