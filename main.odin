@@ -69,7 +69,8 @@ main :: proc() {
 
 		prog := parser->parse(input)
 		if len(parser.errors) > 0 {
-			fmt.println("error")
+			print_errors(&parser.errors)
+			parser->clear_errors()
 			continue
 		}
 
@@ -79,5 +80,11 @@ main :: proc() {
 		mp.ast_to_string(&program, &sb)
 
 		fmt.println(s.to_string(sb))
+	}
+}
+
+print_errors :: proc(errors: ^[dynamic]string) {
+	for err in errors {
+		fmt.eprintfln("-> %s", err)
 	}
 }

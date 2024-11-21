@@ -25,10 +25,17 @@ Parser :: struct {
 	) -> mem.Allocator_Error,
 	parse:          proc(p: ^Parser, input: string) -> Node_Program,
 	free:           proc(p: ^Parser),
+	clear_errors:   proc(p: ^Parser),
 }
 
 parser :: proc() -> Parser {
-	return {l = lexer(), config = parser_config, parse = parse_program, free = parser_free}
+	return {
+		l = lexer(),
+		config = parser_config,
+		parse = parse_program,
+		free = parser_free,
+		clear_errors = parser_clear_errors,
+	}
 }
 
 // ***************************************************************************************
@@ -202,7 +209,13 @@ parser_config :: proc(
 
 @(private = "file")
 parser_free :: proc(p: ^Parser) {
+	parser_clear_errors(p)
 	vmem.arena_destroy(&p._arena)
+}
+
+@(private = "file")
+parser_clear_errors :: proc(p: ^Parser) {
+	clear_dynamic_array(&p.errors)
 }
 
 @(private = "file")
