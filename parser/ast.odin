@@ -3,7 +3,7 @@ package monkey_parser
 import "core:fmt"
 import s "core:strings"
 
-Monkey_Value :: union {
+Monkey_Data :: union {
 	// Basics
 	int,
 	bool,
@@ -23,15 +23,6 @@ Monkey_Value :: union {
 	Node_Function_Literal,
 	Node_Call_Expression,
 	Node_Index_Expression,
-}
-
-Monkey_Data :: struct {
-	type: typeid,
-	v:    Monkey_Value,
-}
-
-monkey_data :: proc(t: typeid, v: Monkey_Value) -> Monkey_Data {
-	return {t, v}
 }
 
 // ***************************************************************************************
@@ -97,8 +88,62 @@ Node_Index_Expression :: struct {
 	index:   ^Monkey_Data,
 }
 
+ast_get_type :: proc(ast: ^Monkey_Data) -> typeid {
+	switch _ in ast {
+	case int:
+		return int
+
+	case bool:
+		return bool
+
+	case string:
+		return string
+
+	case Node_Program:
+		return Node_Program
+
+	case Node_Let_Statement:
+		return Node_Let_Statement
+
+	case Node_Return_Statement:
+		return Node_Return_Statement
+
+	case Node_Block_Expression:
+		return Node_Block_Expression
+
+	case Node_Identifier:
+		return Node_Identifier
+
+	case Node_Prefix_Expression:
+		return Node_Prefix_Expression
+
+	case Node_Infix_Expression:
+		return Node_Infix_Expression
+
+	case Node_If_Expression:
+		return Node_If_Expression
+
+	case Node_Array_Literal:
+		return Node_Array_Literal
+
+	case Node_Hash_Table_Literal:
+		return Node_Hash_Table_Literal
+
+	case Node_Function_Literal:
+		return Node_Function_Literal
+
+	case Node_Call_Expression:
+		return Node_Call_Expression
+
+	case Node_Index_Expression:
+		return Node_Index_Expression
+	}
+
+	return nil
+}
+
 ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
-	#partial switch data in ast.v {
+	#partial switch data in ast {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
 
@@ -106,9 +151,9 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		fmt.sbprint(sb, data.value)
 
 	case Node_Program:
-		for &stmt in data.statements {
+		for &stmt, i in data.statements {
 			ast_to_string(&stmt, sb)
-			fmt.sbprint(sb, "\n")
+			if i < len(data.statements) - 1 do fmt.sbprint(sb, "\n")
 		}
 
 	case Node_Let_Statement:
@@ -126,5 +171,17 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 			ast_to_string(data.ret_val, sb)
 		}
 		fmt.sbprint(sb, ";")
+
+	case Node_Prefix_Expression:
+		fmt.sbprintf(sb, "(%s", data.op)
+		ast_to_string(data.operand, sb)
+		fmt.sbprint(sb, ")")
+
+	case Node_Infix_Expression:
+		fmt.sbprint(sb, "(")
+		ast_to_string(data.left, sb)
+		fmt.sbprint(sb, data.op)
+		ast_to_string(data.right, sb)
+		fmt.sbprint(sb, ")")
 	}
 }

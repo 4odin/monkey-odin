@@ -2,26 +2,33 @@ package monkey_parser
 
 import "core:fmt"
 import "core:mem"
+import vmem "core:mem/virtual"
 import "core:strconv"
 
 import s "core:strings"
 
 Parser :: struct {
-	l:          Lexer,
-	cur_token:  Token,
-	peek_token: Token,
+	l:              Lexer,
+	cur_token:      Token,
+	peek_token:     Token,
 
 	// storage fields
-	allocator:  mem.Allocator,
-	errors:     [dynamic]string,
+	errors:         [dynamic]string,
+	_arena:         vmem.Arena,
+	pool:           mem.Allocator,
+	temp_allocator: mem.Allocator,
 
 	// methods
-	init:       proc(p: ^Parser, input: string, allocator := context.allocator),
-	parse:      proc(p: ^Parser) -> Node_Program,
+	config:         proc(
+		p: ^Parser,
+		temp_allocator := context.temp_allocator,
+	) -> mem.Allocator_Error,
+	parse:          proc(p: ^Parser, input: string) -> Node_Program,
+	free:           proc(p: ^Parser),
 }
 
 parser :: proc() -> Parser {
-	return {l = lexer(), init = init, parse = parse_program}
+	return {l = lexer(), config = parser_config, parse = parse_program, free = parser_free}
 }
 
 // ***************************************************************************************
@@ -40,10 +47,51 @@ Precedence :: enum {
 }
 
 @(private = "file")
+precedences := [Token_Type]Precedence {
+	.Illigal      = .Lowest,
+	.EOF          = .Lowest,
+	.Identifier   = .Lowest,
+	.Int          = .Lowest,
+	.Assign       = .Lowest,
+	.Plus         = .Sum,
+	.Minus        = .Sum,
+	.Bang         = .Lowest,
+	.Asterisk     = .Product,
+	.Slash        = .Product,
+	.Less_Than    = .Less_Greater,
+	.Greater_Than = .Less_Greater,
+	.Equal        = .Equals,
+	.Not_Equal    = .Equals,
+	.Comma        = .Lowest,
+	.Semicolon    = .Lowest,
+	.Left_Paren   = .Lowest,
+	.Right_Paren  = .Lowest,
+	.Left_Brace   = .Lowest,
+	.Right_Brace  = .Lowest,
+	.Function     = .Lowest,
+	.Let          = .Lowest,
+	.True         = .Lowest,
+	.False        = .Lowest,
+	.If           = .Lowest,
+	.Else         = .Lowest,
+	.Return       = .Lowest,
+}
+
+@(private = "file")
+peek_precedence :: proc(p: ^Parser) -> Precedence {
+	return precedences[p.peek_token.type]
+}
+
+@(private = "file")
+cur_precedence :: proc(p: ^Parser) -> Precedence {
+	return precedences[p.cur_token.type]
+}
+
+@(private = "file")
 Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Maybe(Monkey_Data)
 
 @(private = "file")
-Infix_Parse_Fn :: #type proc(p: ^Parser, expr: Monkey_Data) -> Maybe(Monkey_Data)
+Infix_Parse_Fn :: #type proc(p: ^Parser, left: ^Monkey_Data) -> Maybe(Monkey_Data)
 
 @(private = "file")
 prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
@@ -53,8 +101,8 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Int          = parse_integer_expression,
 	.Assign       = nil,
 	.Plus         = nil,
-	.Minus        = nil,
-	.Bang         = nil,
+	.Minus        = parse_prefix_expression,
+	.Bang         = parse_prefix_expression,
 	.Asterisk     = nil,
 	.Slash        = nil,
 	.Less_Than    = nil,
@@ -77,11 +125,39 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 }
 
 @(private = "file")
-INFIX_PARSE_FUNCTIONS :: [Token_Type]Infix_Parse_Fn{}
+infix_parse_fns := [Token_Type]Infix_Parse_Fn {
+	.Illigal      = nil,
+	.EOF          = nil,
+	.Identifier   = nil,
+	.Int          = nil,
+	.Assign       = nil,
+	.Plus         = parse_infix_expression,
+	.Minus        = parse_infix_expression,
+	.Bang         = nil,
+	.Asterisk     = parse_infix_expression,
+	.Slash        = parse_infix_expression,
+	.Less_Than    = parse_infix_expression,
+	.Greater_Than = parse_infix_expression,
+	.Equal        = parse_infix_expression,
+	.Not_Equal    = parse_infix_expression,
+	.Comma        = nil,
+	.Semicolon    = nil,
+	.Left_Paren   = nil,
+	.Right_Paren  = nil,
+	.Left_Brace   = nil,
+	.Right_Brace  = nil,
+	.Function     = nil,
+	.Let          = nil,
+	.True         = nil,
+	.False        = nil,
+	.If           = nil,
+	.Else         = nil,
+	.Return       = nil,
+}
 
 @(private = "file")
 peek_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := s.builder_make(p.allocator)
+	msg := s.builder_make(p.temp_allocator)
 
 	fmt.sbprintf(&msg, "expected next token to be '%s', got '%s' instead", t, p.peek_token.type)
 	append(&p.errors, s.to_string(msg))
@@ -110,13 +186,23 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
-init :: proc(p: ^Parser, input: string, allocator := context.allocator) {
-	p.l->init(input)
-	p.allocator = allocator
-	p.errors = make([dynamic]string, allocator)
+parser_config :: proc(
+	p: ^Parser,
+	temp_allocator := context.temp_allocator,
+) -> mem.Allocator_Error {
+	p.temp_allocator = temp_allocator
 
-	next_token(p)
-	next_token(p)
+	err := vmem.arena_init_growing(&p._arena, 10 * mem.Megabyte)
+	p.pool = vmem.arena_allocator(&p._arena)
+
+	p.errors = make([dynamic]string, 0, 20, p.temp_allocator)
+
+	return err
+}
+
+@(private = "file")
+parser_free :: proc(p: ^Parser) {
+	vmem.arena_destroy(&p._arena)
 }
 
 @(private = "file")
@@ -127,21 +213,21 @@ next_token :: proc(p: ^Parser) {
 
 @(private = "file")
 parse_identifier :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
-	return monkey_data(Node_Identifier, Node_Identifier{transmute(string)p.cur_token.input})
+	return Node_Identifier{transmute(string)p.cur_token.input}
 }
 
 @(private = "file")
 parse_integer_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
 	if !ok {
-		msg := s.builder_make(p.allocator)
+		msg := s.builder_make(p.temp_allocator)
 
 		fmt.sbprintf(&msg, "could not parse %s as integer", p.l.input)
 		append(&p.errors, s.to_string(msg))
 		return nil
 	}
 
-	return monkey_data(int, value)
+	return value
 }
 
 @(private = "file")
@@ -157,7 +243,7 @@ parse_let_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	// todo:: will be completed
 	for !current_token_is(p, .Semicolon) do next_token(p)
 
-	return monkey_data(Node_Let_Statement, stmt)
+	return stmt
 }
 
 @(private = "file")
@@ -169,16 +255,68 @@ parse_return_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	// todo:: will be completed
 	for !current_token_is(p, .Semicolon) do next_token(p)
 
-	return monkey_data(Node_Return_Statement, stmt)
+	return stmt
+}
+
+@(private = "file")
+parse_prefix_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	op := transmute(string)p.cur_token.input
+
+	next_token(p)
+
+	operand, ok := parse_expression(p, .Prefix).?
+	if (!ok) do return nil
+
+	return Node_Prefix_Expression{op = op, operand = new_clone(operand, p.pool)}
+}
+
+@(private = "file")
+parse_infix_expression :: proc(p: ^Parser, left: ^Monkey_Data) -> Maybe(Monkey_Data) {
+	op := transmute(string)p.cur_token.input
+
+	prec := cur_precedence(p)
+	next_token(p)
+	right, ok := parse_expression(p, prec).?
+
+	if !ok do return nil
+
+	return Node_Infix_Expression {
+		op = op,
+		left = new_clone(left^, p.pool),
+		right = new_clone(right, p.pool),
+	}
+}
+
+@(private = "file")
+no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
+	msg := s.builder_make(p.temp_allocator)
+
+	fmt.sbprintf(&msg, "unexpected token '%v'", t)
+	append(&p.errors, s.to_string(msg))
 }
 
 @(private = "file")
 parse_expression :: proc(p: ^Parser, prec: Precedence) -> Maybe(Monkey_Data) {
 	prefix := prefix_parse_fns[p.cur_token.type]
 
-	if prefix == nil do return nil
+	if prefix == nil {
+		no_prefix_parse_fn_error(p, p.cur_token.type)
+		return nil
+	}
 
 	left_expr := prefix(p)
+
+	for !peek_token_is(p, .Semicolon) && prec < peek_precedence(p) {
+		left, ok := left_expr.?
+		if !ok do return nil
+
+		infix := infix_parse_fns[p.peek_token.type]
+		if infix == nil do return left_expr
+
+		next_token(p)
+
+		left_expr = infix(p, &left)
+	}
 
 	return left_expr
 }
@@ -209,9 +347,13 @@ parse_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 }
 
 @(private = "file")
-parse_program :: proc(p: ^Parser) -> Node_Program {
+parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
+	p.l->init(input)
+	next_token(p)
+	next_token(p)
+
 	program := Node_Program{}
-	program.statements = make([dynamic]Monkey_Data, p.allocator)
+	program.statements = make([dynamic]Monkey_Data, p.temp_allocator)
 
 	for p.cur_token.type != .EOF {
 		if stmt, ok := parse_statement(p).?; ok {
