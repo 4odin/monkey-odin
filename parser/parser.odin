@@ -98,7 +98,7 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Illigal      = nil,
 	.EOF          = nil,
 	.Identifier   = parse_identifier,
-	.Int          = parse_integer_expression,
+	.Int          = parse_integer_literal,
 	.Assign       = nil,
 	.Plus         = nil,
 	.Minus        = parse_prefix_expression,
@@ -111,14 +111,14 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Not_Equal    = nil,
 	.Comma        = nil,
 	.Semicolon    = nil,
-	.Left_Paren   = nil,
+	.Left_Paren   = parse_grouped_expression,
 	.Right_Paren  = nil,
 	.Left_Brace   = nil,
 	.Right_Brace  = nil,
 	.Function     = nil,
 	.Let          = nil,
-	.True         = nil,
-	.False        = nil,
+	.True         = parse_boolean_literal,
+	.False        = parse_boolean_literal,
 	.If           = nil,
 	.Else         = nil,
 	.Return       = nil,
@@ -217,7 +217,7 @@ parse_identifier :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 }
 
 @(private = "file")
-parse_integer_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+parse_integer_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
 	if !ok {
 		msg := s.builder_make(p.temp_allocator)
@@ -228,6 +228,10 @@ parse_integer_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	}
 
 	return value
+}
+
+parse_boolean_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	return current_token_is(p, .True)
 }
 
 @(private = "file")
@@ -285,6 +289,15 @@ parse_infix_expression :: proc(p: ^Parser, left: ^Monkey_Data) -> Maybe(Monkey_D
 		left = new_clone(left^, p.pool),
 		right = new_clone(right, p.pool),
 	}
+}
+
+@(private = "file")
+parse_grouped_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	next_token(p)
+	expr := parse_expression(p, .Lowest)
+
+	if !expect_peek(p, .Right_Paren) do return nil
+	return expr
 }
 
 @(private = "file")
