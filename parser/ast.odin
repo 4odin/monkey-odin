@@ -1,6 +1,7 @@
 package monkey_parser
 
 import "core:fmt"
+import "core:reflect"
 import s "core:strings"
 
 Monkey_Data :: union {
@@ -88,58 +89,15 @@ Node_Index_Expression :: struct {
 	index:   ^Monkey_Data,
 }
 
-ast_get_type :: proc(ast: ^Monkey_Data) -> typeid {
-	switch _ in ast {
-	case int:
-		return int
+ast_get_type_val :: reflect.union_variant_typeid
 
-	case bool:
-		return bool
+ast_get_type_ptr :: proc(ast: ^Monkey_Data) -> typeid {
+	return reflect.union_variant_typeid(ast^)
+}
 
-	case string:
-		return string
-
-	case Node_Program:
-		return Node_Program
-
-	case Node_Let_Statement:
-		return Node_Let_Statement
-
-	case Node_Return_Statement:
-		return Node_Return_Statement
-
-	case Node_Block_Expression:
-		return Node_Block_Expression
-
-	case Node_Identifier:
-		return Node_Identifier
-
-	case Node_Prefix_Expression:
-		return Node_Prefix_Expression
-
-	case Node_Infix_Expression:
-		return Node_Infix_Expression
-
-	case Node_If_Expression:
-		return Node_If_Expression
-
-	case Node_Array_Literal:
-		return Node_Array_Literal
-
-	case Node_Hash_Table_Literal:
-		return Node_Hash_Table_Literal
-
-	case Node_Function_Literal:
-		return Node_Function_Literal
-
-	case Node_Call_Expression:
-		return Node_Call_Expression
-
-	case Node_Index_Expression:
-		return Node_Index_Expression
-	}
-
-	return nil
+ast_get_type :: proc {
+	ast_get_type_val,
+	ast_get_type_ptr,
 }
 
 ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
@@ -183,5 +141,26 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		fmt.sbprint(sb, data.op)
 		ast_to_string(data.right, sb)
 		fmt.sbprint(sb, ")")
+
+	case Node_If_Expression:
+		fmt.sbprint(sb, "if ")
+		ast_to_string(data.condition, sb)
+		fmt.sbprint(sb, " ")
+		consequence_data := Monkey_Data(data.consequence)
+		ast_to_string(&consequence_data, sb)
+
+		if data.alternative != nil {
+			fmt.sbprint(sb, " else ")
+			alternative_data := Monkey_Data(data.alternative)
+			ast_to_string(&alternative_data, sb)
+		}
+
+	case Node_Block_Expression:
+		fmt.sbprint(sb, "{")
+		for &stmt, i in data {
+			ast_to_string(&stmt, sb)
+			if i < len(data) - 1 do fmt.sbprint(sb, "\n")
+		}
+		fmt.sbprint(sb, "}")
 	}
 }

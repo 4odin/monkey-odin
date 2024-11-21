@@ -197,7 +197,7 @@ return 993322;
 			log.errorf(
 				"test [%d]: stmt is not a return statement. got='%v'",
 				i,
-				mp.ast_get_type(&stmt),
+				mp.ast_get_type(stmt),
 			)
 			continue
 		}
@@ -352,7 +352,7 @@ prefix_test_case_is_ok :: proc(
 		log.errorf(
 			"test [%d]: program.statements[0] is not 'Node_Prefix_Expression', got='%v'",
 			test_number,
-			mp.ast_get_type(&program.statements[0]),
+			mp.ast_get_type(program.statements[0]),
 		)
 		return false
 	}
@@ -398,8 +398,40 @@ test_parsing_prefix_expressions :: proc(t: ^testing.T) {
 	}
 }
 
-infix_test_case_is_ok :: proc(
-	test_number: int,
+infix_expression_is_valid :: proc(
+	expression: ^mp.Monkey_Data,
+	left_value: Literal,
+	operator: string,
+	right_value: Literal,
+) -> bool {
+	infix, ok := expression.(mp.Node_Infix_Expression)
+	if !ok {
+		log.errorf(
+			"expression is not 'Node_Infix_Expression', got='%v'",
+			mp.ast_get_type(expression),
+		)
+		return false
+	}
+
+	if infix.op != operator {
+		log.errorf("wrong infix operator expected='%s', got='%s'", operator, infix.op)
+		return false
+	}
+
+	if !literal_value_is_ok(infix.left, left_value) {
+		log.errorf("test's left value has failed")
+		return false
+	}
+
+	if !literal_value_is_ok(infix.right, right_value) {
+		log.errorf("test's right value has failed")
+		return false
+	}
+
+	return true
+}
+
+infix_test_case_is_valid :: proc(
 	input: string,
 	left_value: Literal,
 	operator: string,
@@ -409,11 +441,7 @@ infix_test_case_is_ok :: proc(
 	p->config()
 
 	defer if p._arena.total_used != 0 {
-		log.errorf(
-			"test [%d] has failed, parser has un freed memory: %v",
-			test_number,
-			p._arena.total_used,
-		)
+		log.errorf("test has failed, parser has un freed memory: %v", p._arena.total_used)
 	}
 	defer p->free()
 
@@ -425,45 +453,14 @@ infix_test_case_is_ok :: proc(
 
 	if len(program.statements) != 1 {
 		log.errorf(
-			"test [%d]: program.statements does not contain 1 statements, got='%v'",
-			test_number,
+			"program.statements does not contain 1 statements, got='%v'",
 			len(program.statements),
 		)
 
 		return false
 	}
 
-	infix, ok := program.statements[0].(mp.Node_Infix_Expression)
-	if !ok {
-		log.errorf(
-			"test [%d]: program.statements[0] is not 'Node_Infix_Expression', got='%v'",
-			test_number,
-			mp.ast_get_type(&program.statements[0]),
-		)
-		return false
-	}
-
-	if infix.op != operator {
-		log.errorf(
-			"test [%d]: wrong infix operator expected='%s', got='%s'",
-			test_number,
-			operator,
-			infix.op,
-		)
-		return false
-	}
-
-	if !literal_value_is_ok(infix.left, left_value) {
-		log.errorf("test [%d]'s left value has failed", test_number)
-		return false
-	}
-
-	if !literal_value_is_ok(infix.right, right_value) {
-		log.errorf("test [%d]'s right value has failed", test_number)
-		return false
-	}
-
-	return true
+	return infix_expression_is_valid(&program.statements[0], left_value, operator, right_value)
 }
 
 @(test)
@@ -490,8 +487,7 @@ test_parsing_infix_expressions :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 
 	for test_case, i in tests {
-		if !infix_test_case_is_ok(
-			i,
+		if !infix_test_case_is_valid(
 			test_case.input,
 			test_case.left_value,
 			test_case.operator,
@@ -569,5 +565,120 @@ test_parsing_operator_precedence :: proc(t: ^testing.T) {
 			log.errorf("Test [%d] has failed", i)
 			testing.fail(t)
 		}
+	}
+}
+
+@(test)
+test_parsing_if_expression :: proc(t: ^testing.T) {
+	input := "if x < y { x }"
+
+	p := mp.parser()
+	p->config()
+
+	defer if p._arena.total_used != 0 {
+		log.errorf("parser has un freed memory: %v", p._arena.total_used)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(&p) {
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program.statements[0].(mp.Node_If_Expression)
+	if !ok {
+		log.errorf(
+			"program.statements[0] is not Node_If_Expression, got='%v'",
+			mp.ast_get_type(program.statements[0]),
+		)
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(stmt.condition, "x", "<", "y") {
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.consequence) != 1 {
+		log.errorf("consequence is not 1 statements, got='%d'", len(stmt.consequence))
+		testing.fail(t)
+		return
+	}
+
+	if !identifier_is_valid(&stmt.consequence[0], "x") {
+		testing.fail(t)
+		return
+	}
+
+	if stmt.alternative != nil {
+		log.errorf("alternative is not nil, got='%d'", len(stmt.alternative))
+		testing.fail(t)
+		return
+	}
+}
+
+@(test)
+test_parsing_if_else_expression :: proc(t: ^testing.T) {
+	input := "if x < y { x } else { y }"
+
+	p := mp.parser()
+	p->config()
+
+	defer if p._arena.total_used != 0 {
+		log.errorf("parser has un freed memory: %v", p._arena.total_used)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(&p) {
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program.statements[0].(mp.Node_If_Expression)
+	if !ok {
+		log.errorf(
+			"program.statements[0] is not Node_If_Expression, got='%v'",
+			mp.ast_get_type(program.statements[0]),
+		)
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(stmt.condition, "x", "<", "y") {
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.consequence) != 1 {
+		log.errorf("consequence is not 1 statements, got='%d'", len(stmt.consequence))
+		testing.fail(t)
+		return
+	}
+
+	if !identifier_is_valid(&stmt.consequence[0], "x") {
+		testing.fail(t)
+		return
+	}
+
+	if stmt.alternative == nil {
+		log.errorf("alternative is nil")
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.alternative) != 1 {
+		log.errorf("alternative is not 1 statements, got='%d'", len(stmt.alternative))
+		testing.fail(t)
+		return
+	}
+
+	if !identifier_is_valid(&stmt.alternative[0], "y") {
+		testing.fail(t)
+		return
 	}
 }

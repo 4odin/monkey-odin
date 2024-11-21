@@ -119,7 +119,7 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Let          = nil,
 	.True         = parse_boolean_literal,
 	.False        = parse_boolean_literal,
-	.If           = nil,
+	.If           = parse_if_expression,
 	.Else         = nil,
 	.Return       = nil,
 }
@@ -298,6 +298,50 @@ parse_grouped_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 
 	if !expect_peek(p, .Right_Paren) do return nil
 	return expr
+}
+
+@(private = "file")
+parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
+	block := make(Node_Block_Expression, p.pool)
+
+	next_token(p)
+
+	for !current_token_is(p, .Right_Brace) && !current_token_is(p, .EOF) {
+		stmt, ok := parse_statement(p).?
+		if ok do append(&block, stmt)
+
+		next_token(p)
+	}
+
+	return block
+}
+
+@(private = "file")
+parse_if_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	next_token(p)
+
+	condition, ok := parse_expression(p, .Lowest).?
+	if !ok do return nil
+
+	if !expect_peek(p, .Left_Brace) do return nil
+
+	consequence := parse_block_statement(p)
+
+	alternative: Node_Block_Expression = nil
+
+	if peek_token_is(p, .Else) {
+		next_token(p)
+
+		if !expect_peek(p, .Left_Brace) do return nil
+
+		alternative = parse_block_statement(p)
+	}
+
+	return Node_If_Expression {
+		condition = new_clone(condition, p.pool),
+		consequence = consequence,
+		alternative = alternative,
+	}
 }
 
 @(private = "file")
