@@ -34,9 +34,7 @@ Monkey_Data :: union {
 //    Monkey_data in a pool
 // ***************************************************************************************
 
-Node_Program :: struct {
-	statements: [dynamic]Monkey_Data,
-}
+Node_Program :: distinct [dynamic]Monkey_Data
 
 Node_Let_Statement :: struct {
 	name:  string,
@@ -80,7 +78,7 @@ Node_Function_Literal :: struct {
 }
 
 Node_Call_Expression :: struct {
-	function:  Node_Function_Literal,
+	function:  ^Monkey_Data,
 	arguments: [dynamic]Monkey_Data,
 }
 
@@ -91,6 +89,7 @@ Node_Index_Expression :: struct {
 
 ast_get_type_val :: reflect.union_variant_typeid
 
+@(private = "file")
 ast_get_type_ptr :: proc(ast: ^Monkey_Data) -> typeid {
 	return reflect.union_variant_typeid(ast^)
 }
@@ -109,9 +108,9 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		fmt.sbprint(sb, data.value)
 
 	case Node_Program:
-		for &stmt, i in data.statements {
+		for &stmt, i in data {
 			ast_to_string(&stmt, sb)
-			if i < len(data.statements) - 1 do fmt.sbprint(sb, "\n")
+			if i < len(data) - 1 do fmt.sbprint(sb, "\n")
 		}
 
 	case Node_Let_Statement:
@@ -156,11 +155,33 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		}
 
 	case Node_Block_Expression:
-		fmt.sbprint(sb, "{")
+		fmt.sbprint(sb, "{ ")
 		for &stmt, i in data {
 			ast_to_string(&stmt, sb)
-			if i < len(data) - 1 do fmt.sbprint(sb, "\n")
+			if i < len(data) - 1 do fmt.sbprint(sb, "; ")
 		}
-		fmt.sbprint(sb, "}")
+		fmt.sbprint(sb, " }")
+
+	case Node_Function_Literal:
+		fmt.sbprint(sb, "Fn (")
+		for param, i in data.parameters {
+			fmt.sbprint(sb, param.value)
+
+			if i < len(data.parameters) - 1 do fmt.sbprint(sb, ", ")
+		}
+		fmt.sbprint(sb, ") ")
+
+		body_data := Monkey_Data(data.body)
+		ast_to_string(&body_data, sb)
+
+	case Node_Call_Expression:
+		ast_to_string(data.function, sb)
+		fmt.sbprint(sb, "(")
+		for &arg, i in data.arguments {
+			ast_to_string(&arg, sb)
+
+			if i < len(data.arguments) - 1 do fmt.sbprint(sb, ", ")
+		}
+		fmt.sbprint(sb, ")")
 	}
 }

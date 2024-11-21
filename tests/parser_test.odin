@@ -23,7 +23,7 @@ parser_has_error :: proc(p: ^mp.Parser) -> bool {
 	return true
 }
 
-stmt_is_let :: proc(s: ^mp.Monkey_Data, name: string) -> bool {
+stmt_is_let :: proc(s: ^mp.Monkey_Data, name: string, expected_value: Literal) -> bool {
 	let_stmt, ok := s.(mp.Node_Let_Statement)
 	if !ok {
 		log.errorf("s is not a let statement. got='%v'", mp.ast_get_type(s))
@@ -35,7 +35,7 @@ stmt_is_let :: proc(s: ^mp.Monkey_Data, name: string) -> bool {
 		return false
 	}
 
-	return true
+	return literal_value_is_valid(let_stmt.value, expected_value)
 }
 
 integer_literal_is_valid :: proc(il: ^mp.Monkey_Data, expected_value: int) -> bool {
@@ -83,7 +83,7 @@ boolean_is_valid :: proc(b: ^mp.Monkey_Data, expected_value: bool) -> bool {
 	return true
 }
 
-literal_value_is_ok :: proc(lit: ^mp.Monkey_Data, expected: Literal) -> bool {
+literal_value_is_valid :: proc(lit: ^mp.Monkey_Data, expected: Literal) -> bool {
 	switch v in expected {
 	case int:
 		return integer_literal_is_valid(lit, v)
@@ -104,9 +104,15 @@ test_parsing_let_statement :: proc(t: ^testing.T) {
 
 	input := `
 let x = 5; 
-let y = 10;
-let foobar = 838383;
+let y = true;
+let foobar = y;
     `
+
+
+	tests := [?]struct {
+		expected_identifier: string,
+		expected_value:      Literal,
+	}{{"x", 5}, {"y", true}, {"foobar", "y"}}
 
 
 	p := mp.parser()
@@ -126,25 +132,16 @@ let foobar = 838383;
 		return
 	}
 
-	if len(program.statements) != 3 {
-		log.errorf(
-			"program.statements does not contain 3 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 3 {
+		log.errorf("program does not contain 3 statements, got='%v'", len(program))
 
 		testing.fail(t)
 		return
 	}
 
-	tests := [?]struct {
-		expected_identifier: string,
-	}{{"x"}, {"y"}, {"foobar"}}
-
 	for test_case, i in tests {
-		stmt := program.statements[i]
-		if !stmt_is_let(&stmt, test_case.expected_identifier) {
+		if !stmt_is_let(&program[i], test_case.expected_identifier, test_case.expected_value) {
 			testing.fail(t)
-			return
 		}
 	}
 }
@@ -176,11 +173,8 @@ return 993322;
 		return
 	}
 
-	if len(program.statements) != 3 {
-		log.errorf(
-			"program.statements does not contain 3 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 3 {
+		log.errorf("program does not contain 3 statements, got='%v'", len(program))
 
 		testing.fail(t)
 		return
@@ -191,7 +185,7 @@ return 993322;
 	}{{"x"}, {"y"}, {"foobar"}}
 
 	for _, i in tests {
-		stmt := program.statements[i]
+		stmt := program[i]
 		_, ok := stmt.(mp.Node_Return_Statement)
 		if !ok {
 			log.errorf(
@@ -225,17 +219,14 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	if len(program.statements) != 1 {
-		log.errorf(
-			"program.statements does not contain 1 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
 		testing.fail(t)
 		return
 	}
 
-	if !identifier_is_valid(&program.statements[0], "foobar") {
+	if !identifier_is_valid(&program[0], "foobar") {
 		testing.fail(t)
 		return
 	}
@@ -262,17 +253,14 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	if len(program.statements) != 1 {
-		log.errorf(
-			"program.statements does not contain 1 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
 		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_ok(&program.statements[0], 5) {
+	if !literal_value_is_valid(&program[0], 5) {
 		testing.fail(t)
 	}
 }
@@ -298,17 +286,14 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	if len(program.statements) != 1 {
-		log.errorf(
-			"program.statements does not contain 1 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
 		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_ok(&program.statements[0], true) {
+	if !literal_value_is_valid(&program[0], true) {
 		testing.fail(t)
 	}
 }
@@ -337,22 +322,22 @@ prefix_test_case_is_ok :: proc(
 		return false
 	}
 
-	if len(program.statements) != 1 {
+	if len(program) != 1 {
 		log.errorf(
-			"test [%d]: program.statements does not contain 1 statements, got='%v'",
+			"test [%d]: program does not contain 1 statement, got='%v'",
 			test_number,
-			len(program.statements),
+			len(program),
 		)
 
 		return false
 	}
 
-	infix, ok := program.statements[0].(mp.Node_Prefix_Expression)
+	infix, ok := program[0].(mp.Node_Prefix_Expression)
 	if !ok {
 		log.errorf(
-			"test [%d]: program.statements[0] is not 'Node_Prefix_Expression', got='%v'",
+			"test [%d]: program[0] is not 'Node_Prefix_Expression', got='%v'",
 			test_number,
-			mp.ast_get_type(program.statements[0]),
+			mp.ast_get_type(program[0]),
 		)
 		return false
 	}
@@ -367,7 +352,7 @@ prefix_test_case_is_ok :: proc(
 		return false
 	}
 
-	if !literal_value_is_ok(infix.operand, operand_value) {
+	if !literal_value_is_valid(infix.operand, operand_value) {
 		log.errorf("test [%d]'s operand value has failed", test_number)
 		return false
 	}
@@ -418,12 +403,12 @@ infix_expression_is_valid :: proc(
 		return false
 	}
 
-	if !literal_value_is_ok(infix.left, left_value) {
+	if !literal_value_is_valid(infix.left, left_value) {
 		log.errorf("test's left value has failed")
 		return false
 	}
 
-	if !literal_value_is_ok(infix.right, right_value) {
+	if !literal_value_is_valid(infix.right, right_value) {
 		log.errorf("test's right value has failed")
 		return false
 	}
@@ -451,16 +436,13 @@ infix_test_case_is_valid :: proc(
 		return false
 	}
 
-	if len(program.statements) != 1 {
-		log.errorf(
-			"program.statements does not contain 1 statements, got='%v'",
-			len(program.statements),
-		)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
 		return false
 	}
 
-	return infix_expression_is_valid(&program.statements[0], left_value, operator, right_value)
+	return infix_expression_is_valid(&program[0], left_value, operator, right_value)
 }
 
 @(test)
@@ -531,7 +513,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 }
 
 @(test)
-test_parsing_operator_precedence :: proc(t: ^testing.T) {
+test_by_ast_to_string :: proc(t: ^testing.T) {
 	tests := []struct {
 		input:    string,
 		expected: string,
@@ -556,6 +538,15 @@ test_parsing_operator_precedence :: proc(t: ^testing.T) {
 		{"2 / (5 + 5)", "(2/(5+5))"},
 		{"-(5 + 5)", "(-(5+5))"},
 		{"!(true == true)", "(!(true==true))"},
+		{"if x > y { x }", "if (x>y) { x }"},
+		{"if x > y { x } else { y }", "if (x>y) { x } else { y }"},
+		{"fn() {};", "Fn () {  }"},
+		{"fn(x) {};", "Fn (x) {  }"},
+		{"fn(x, y) {};", "Fn (x, y) {  }"},
+		{"fn(x, y) { x + y };", "Fn (x, y) { (x+y) }"},
+		{"a + add(b * c) + d", "((a+add((b*c)))+d)"},
+		{"add(a, b, 1, 2 * 4, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2*4), (4+5), add(6, (7*8)))"},
+		{"add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))"},
 	}
 
 	defer free_all(context.temp_allocator)
@@ -587,12 +578,16 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program.statements[0].(mp.Node_If_Expression)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(mp.Node_If_Expression)
 	if !ok {
-		log.errorf(
-			"program.statements[0] is not Node_If_Expression, got='%v'",
-			mp.ast_get_type(program.statements[0]),
-		)
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_get_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -603,7 +598,7 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 	}
 
 	if len(stmt.consequence) != 1 {
-		log.errorf("consequence is not 1 statements, got='%d'", len(stmt.consequence))
+		log.errorf("consequence is not 1 statement, got='%d'", len(stmt.consequence))
 		testing.fail(t)
 		return
 	}
@@ -639,12 +634,16 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program.statements[0].(mp.Node_If_Expression)
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(mp.Node_If_Expression)
 	if !ok {
-		log.errorf(
-			"program.statements[0] is not Node_If_Expression, got='%v'",
-			mp.ast_get_type(program.statements[0]),
-		)
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_get_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -655,7 +654,7 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	}
 
 	if len(stmt.consequence) != 1 {
-		log.errorf("consequence is not 1 statements, got='%d'", len(stmt.consequence))
+		log.errorf("consequence is not 1 statement, got='%d'", len(stmt.consequence))
 		testing.fail(t)
 		return
 	}
@@ -672,12 +671,143 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	}
 
 	if len(stmt.alternative) != 1 {
-		log.errorf("alternative is not 1 statements, got='%d'", len(stmt.alternative))
+		log.errorf("alternative is not 1 statement, got='%d'", len(stmt.alternative))
 		testing.fail(t)
 		return
 	}
 
 	if !identifier_is_valid(&stmt.alternative[0], "y") {
+		testing.fail(t)
+		return
+	}
+}
+
+@(test)
+test_parsing_function_literal :: proc(t: ^testing.T) {
+	input := "fn(x, y) { x + y; }"
+
+	p := mp.parser()
+	p->config()
+
+	defer if p._arena.total_used != 0 {
+		log.errorf("parser has un freed memory: %v", p._arena.total_used)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(&p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(mp.Node_Function_Literal)
+	if !ok {
+		log.errorf(
+			"program[0] is not Node_Function_Literal, got='%v'",
+			mp.ast_get_type(program[0]),
+		)
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.parameters) != 2 {
+		log.errorf(
+			"function literal wrong number of parameters. expected='2', got='%d'",
+			len(stmt.parameters),
+		)
+		testing.fail(t)
+		return
+	}
+
+	if stmt.parameters[0].value != "x" {
+		log.errorf("expected first parameter to be 'x', got='%s'", stmt.parameters[0].value)
+		testing.fail(t)
+		return
+	}
+
+	if stmt.parameters[1].value != "y" {
+		log.errorf("expected first parameter to be 'x', got='%s'", stmt.parameters[1].value)
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.body) != 1 {
+		log.errorf("function body does not contain 1 statement, got='%v'", len(stmt.body))
+
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(&stmt.body[0], "x", "+", "y") {
+		testing.fail(t)
+		return
+	}
+}
+
+@(test)
+test_parsing_call_expression :: proc(t: ^testing.T) {
+	input := "add(1, 2 * 3, 4 + 5);"
+
+	p := mp.parser()
+	p->config()
+
+	defer if p._arena.total_used != 0 {
+		log.errorf("parser has un freed memory: %v", p._arena.total_used)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(&p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(mp.Node_Call_Expression)
+	if !ok {
+		log.errorf("program[0] is not Node_Call_Expression, got='%v'", mp.ast_get_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if !identifier_is_valid(stmt.function, "add") {
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt.arguments) != 3 {
+		log.errorf("call expression does not contain 3 arguments, got='%v'", len(stmt.arguments))
+
+		testing.fail(t)
+		return
+	}
+
+	if !literal_value_is_valid(&stmt.arguments[0], 1) {
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(&stmt.arguments[1], 2, "*", 3) {
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(&stmt.arguments[2], 4, "+", 5) {
 		testing.fail(t)
 		return
 	}

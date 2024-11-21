@@ -64,7 +64,7 @@ precedences := [Token_Type]Precedence {
 	.Not_Equal    = .Equals,
 	.Comma        = .Lowest,
 	.Semicolon    = .Lowest,
-	.Left_Paren   = .Lowest,
+	.Left_Paren   = .Call,
 	.Right_Paren  = .Lowest,
 	.Left_Brace   = .Lowest,
 	.Right_Brace  = .Lowest,
@@ -115,7 +115,7 @@ prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
 	.Right_Paren  = nil,
 	.Left_Brace   = nil,
 	.Right_Brace  = nil,
-	.Function     = nil,
+	.Function     = parse_function_literal,
 	.Let          = nil,
 	.True         = parse_boolean_literal,
 	.False        = parse_boolean_literal,
@@ -142,7 +142,7 @@ infix_parse_fns := [Token_Type]Infix_Parse_Fn {
 	.Not_Equal    = parse_infix_expression,
 	.Comma        = nil,
 	.Semicolon    = nil,
-	.Left_Paren   = nil,
+	.Left_Paren   = parse_call_expression,
 	.Right_Paren  = nil,
 	.Left_Brace   = nil,
 	.Right_Brace  = nil,
@@ -236,30 +236,32 @@ parse_boolean_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 
 @(private = "file")
 parse_let_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
-	stmt := Node_Let_Statement{}
-
 	if !expect_peek(p, .Identifier) do return nil
 
-	stmt.name = transmute(string)p.cur_token.input
+	name := transmute(string)p.cur_token.input
 
 	if !expect_peek(p, .Assign) do return nil
 
-	// todo:: will be completed
-	for !current_token_is(p, .Semicolon) do next_token(p)
+	next_token(p)
 
-	return stmt
+	value, ok := parse_expression(p, .Lowest).?
+	if !ok do return nil
+
+	if peek_token_is(p, .Semicolon) do next_token(p)
+
+	return Node_Let_Statement{name = name, value = new_clone(value, p.pool)}
 }
 
 @(private = "file")
 parse_return_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
-	stmt := Node_Return_Statement{}
-
 	next_token(p)
 
-	// todo:: will be completed
-	for !current_token_is(p, .Semicolon) do next_token(p)
+	ret_val, ok := parse_expression(p, .Lowest).?
+	if !ok do return nil
 
-	return stmt
+	if peek_token_is(p, .Semicolon) do next_token(p)
+
+	return Node_Return_Statement{ret_val = new_clone(ret_val, p.pool)}
 }
 
 @(private = "file")
@@ -344,6 +346,81 @@ parse_if_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	}
 }
 
+parse_function_parameters :: proc(p: ^Parser) -> Maybe([dynamic]Node_Identifier) {
+	identifiers := make([dynamic]Node_Identifier, p.pool)
+
+	if peek_token_is(p, .Right_Paren) {
+		next_token(p)
+		return identifiers
+	}
+
+	next_token(p)
+
+	append(&identifiers, Node_Identifier{value = transmute(string)p.cur_token.input})
+
+	for peek_token_is(p, .Comma) {
+		next_token(p)
+		next_token(p)
+		append(&identifiers, Node_Identifier{value = transmute(string)p.cur_token.input})
+	}
+
+	if !expect_peek(p, .Right_Paren) do return nil
+
+	return identifiers
+}
+
+@(private = "file")
+parse_function_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
+	if !expect_peek(p, .Left_Paren) do return nil
+
+	parameters, ok := parse_function_parameters(p).?
+	if !ok do return nil
+
+	if !expect_peek(p, .Left_Brace) do return nil
+
+	body := parse_block_statement(p)
+
+	return Node_Function_Literal{body = body, parameters = parameters}
+}
+
+@(private = "file")
+parse_call_arguments :: proc(p: ^Parser) -> Maybe([dynamic]Monkey_Data) {
+	args := make([dynamic]Monkey_Data, p.pool)
+
+	if peek_token_is(p, .Right_Paren) {
+		next_token(p)
+		return args
+	}
+
+	next_token(p)
+	arg, ok := parse_expression(p, .Lowest).?
+	if !ok do return nil
+
+	append(&args, arg)
+
+	for peek_token_is(p, .Comma) {
+		next_token(p)
+		next_token(p)
+
+		arg1, ok1 := parse_expression(p, .Lowest).?
+		if !ok1 do return nil
+
+		append(&args, arg1)
+	}
+
+	if !expect_peek(p, .Right_Paren) do return nil
+
+	return args
+}
+
+@(private = "file")
+parse_call_expression :: proc(p: ^Parser, left: ^Monkey_Data) -> Maybe(Monkey_Data) {
+	arguments, ok := parse_call_arguments(p).?
+	if !ok do return nil
+
+	return Node_Call_Expression{function = new_clone(left^, p.pool), arguments = arguments}
+}
+
 @(private = "file")
 no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
 	msg := s.builder_make(p.temp_allocator)
@@ -409,12 +486,11 @@ parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
 	next_token(p)
 	next_token(p)
 
-	program := Node_Program{}
-	program.statements = make([dynamic]Monkey_Data, p.temp_allocator)
+	program := make(Node_Program, p.temp_allocator)
 
 	for p.cur_token.type != .EOF {
 		if stmt, ok := parse_statement(p).?; ok {
-			append(&program.statements, stmt)
+			append(&program, stmt)
 		}
 		next_token(p)
 	}
