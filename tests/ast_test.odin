@@ -4,20 +4,20 @@ import "core:log"
 import st "core:strings"
 import "core:testing"
 
-import mp "../parser"
+import ma "../ast"
 
 @(test)
 test_ast_to_string :: proc(t: ^testing.T) {
-	another_var := mp.Node(mp.Node_Identifier{value = "another_var"})
+	another_var := ma.Node(ma.Node_Identifier{value = "another_var"})
 
-	program := mp.Node_Program {
-		mp.Node(mp.Node_Let_Statement{name = "my_var", value = &another_var}),
+	program := ma.Node_Program {
+		ma.Node(ma.Node_Let_Statement{name = "my_var", value = &another_var}),
 	}
 	defer delete(program)
 
 	sb := st.builder_make(context.temp_allocator)
 	defer free_all(context.temp_allocator)
-	mp.ast_to_string(program, &sb)
+	ma.ast_to_string(program, &sb)
 
 	expected := "let my_var = another_var;"
 

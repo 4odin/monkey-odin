@@ -1,5 +1,6 @@
 package tests
 
+import ma "../ast"
 import mp "../parser"
 
 import "core:log"
@@ -23,10 +24,10 @@ parser_has_error :: proc(p: mp.Parser) -> bool {
 	return true
 }
 
-stmt_is_let :: proc(s: mp.Node, name: string, expected_value: Literal) -> bool {
-	let_stmt, ok := s.(mp.Node_Let_Statement)
+stmt_is_let :: proc(s: ma.Node, name: string, expected_value: Literal) -> bool {
+	let_stmt, ok := s.(ma.Node_Let_Statement)
 	if !ok {
-		log.errorf("s is not a let statement. got='%v'", mp.ast_type(s))
+		log.errorf("s is not a let statement. got='%v'", ma.ast_type(s))
 		return false
 	}
 
@@ -38,10 +39,10 @@ stmt_is_let :: proc(s: mp.Node, name: string, expected_value: Literal) -> bool {
 	return literal_value_is_valid(let_stmt.value, expected_value)
 }
 
-integer_literal_is_valid :: proc(il: ^mp.Node, expected_value: int) -> bool {
+integer_literal_is_valid :: proc(il: ^ma.Node, expected_value: int) -> bool {
 	val, ok := il.(int)
 	if !ok {
-		log.errorf("il is not 'int', got='%v'", mp.ast_type(il))
+		log.errorf("il is not 'int', got='%v'", ma.ast_type(il))
 		return false
 	}
 
@@ -53,10 +54,10 @@ integer_literal_is_valid :: proc(il: ^mp.Node, expected_value: int) -> bool {
 	return true
 }
 
-identifier_is_valid :: proc(expr: ^mp.Node, expected_value: string) -> bool {
-	ident, ok := expr.(mp.Node_Identifier)
+identifier_is_valid :: proc(expr: ^ma.Node, expected_value: string) -> bool {
+	ident, ok := expr.(ma.Node_Identifier)
 	if !ok {
-		log.errorf("expression is not Node_Identifier, got='%v'", mp.ast_type(expr))
+		log.errorf("expression is not Node_Identifier, got='%v'", ma.ast_type(expr))
 		return false
 	}
 
@@ -68,10 +69,10 @@ identifier_is_valid :: proc(expr: ^mp.Node, expected_value: string) -> bool {
 	return true
 }
 
-boolean_is_valid :: proc(b: ^mp.Node, expected_value: bool) -> bool {
+boolean_is_valid :: proc(b: ^ma.Node, expected_value: bool) -> bool {
 	b_lit, ok := b.(bool)
 	if !ok {
-		log.errorf("expression is not boolean, got='%v'", mp.ast_type(b))
+		log.errorf("expression is not boolean, got='%v'", ma.ast_type(b))
 		return false
 	}
 
@@ -83,7 +84,7 @@ boolean_is_valid :: proc(b: ^mp.Node, expected_value: bool) -> bool {
 	return true
 }
 
-literal_value_is_valid :: proc(lit: ^mp.Node, expected: Literal) -> bool {
+literal_value_is_valid :: proc(lit: ^ma.Node, expected: Literal) -> bool {
 	switch v in expected {
 	case int:
 		return integer_literal_is_valid(lit, v)
@@ -186,9 +187,9 @@ return 993322;
 
 	for _, i in tests {
 		stmt := program[i]
-		_, ok := stmt.(mp.Node_Return_Statement)
+		_, ok := stmt.(ma.Node_Return_Statement)
 		if !ok {
-			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, mp.ast_type(stmt))
+			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, ma.ast_type(stmt))
 			continue
 		}
 	}
@@ -328,12 +329,12 @@ prefix_test_case_is_ok :: proc(
 		return false
 	}
 
-	infix, ok := program[0].(mp.Node_Prefix_Expression)
+	infix, ok := program[0].(ma.Node_Prefix_Expression)
 	if !ok {
 		log.errorf(
 			"test [%d]: program[0] is not 'Node_Prefix_Expression', got='%v'",
 			test_number,
-			mp.ast_type(program[0]),
+			ma.ast_type(program[0]),
 		)
 		return false
 	}
@@ -380,14 +381,14 @@ test_parsing_prefix_expressions :: proc(t: ^testing.T) {
 }
 
 infix_expression_is_valid :: proc(
-	expression: ^mp.Node,
+	expression: ^ma.Node,
 	left_value: Literal,
 	operator: string,
 	right_value: Literal,
 ) -> bool {
-	infix, ok := expression.(mp.Node_Infix_Expression)
+	infix, ok := expression.(ma.Node_Infix_Expression)
 	if !ok {
-		log.errorf("expression is not 'Node_Infix_Expression', got='%v'", mp.ast_type(expression))
+		log.errorf("expression is not 'Node_Infix_Expression', got='%v'", ma.ast_type(expression))
 		return false
 	}
 
@@ -490,7 +491,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	}
 
 	sb := st.builder_make(context.temp_allocator)
-	mp.ast_to_string(program, &sb)
+	ma.ast_to_string(program, &sb)
 
 	if st.to_string(sb) != expected {
 		log.errorf(
@@ -577,9 +578,9 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(mp.Node_If_Expression)
+	stmt, ok := program[0].(ma.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", ma.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -633,9 +634,9 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(mp.Node_If_Expression)
+	stmt, ok := program[0].(ma.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", ma.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -700,9 +701,9 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(mp.Node_Function_Literal)
+	stmt, ok := program[0].(ma.Node_Function_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Function_Literal, got='%v'", mp.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Function_Literal, got='%v'", ma.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -767,9 +768,9 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(mp.Node_Call_Expression)
+	stmt, ok := program[0].(ma.Node_Call_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_Call_Expression, got='%v'", mp.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Call_Expression, got='%v'", ma.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}

@@ -7,6 +7,8 @@ import "core:strconv"
 
 import st "core:strings"
 
+import ma "../ast"
+
 Parser :: struct {
 	l:               Lexer,
 	cur_token:       Token,
@@ -24,7 +26,7 @@ Parser :: struct {
 		pool_reserved_block_size: uint = 10 * mem.Megabyte,
 		temp_allocator := context.temp_allocator,
 	) -> mem.Allocator_Error,
-	parse:           proc(p: ^Parser, input: string) -> Node_Program,
+	parse:           proc(p: ^Parser, input: string) -> ma.Node_Program,
 	pool_total_used: proc(p: ^Parser) -> uint,
 	free:            proc(p: ^Parser),
 	clear_errors:    proc(p: ^Parser),
@@ -80,10 +82,10 @@ cur_precedence :: proc(p: ^Parser) -> Precedence {
 }
 
 @(private = "file")
-Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Node
+Prefix_Parse_Fn :: #type proc(p: ^Parser) -> ma.Node
 
 @(private = "file")
-Infix_Parse_Fn :: #type proc(p: ^Parser, left: Node) -> Node
+Infix_Parse_Fn :: #type proc(p: ^Parser, left: ma.Node) -> ma.Node
 
 @(private = "file")
 prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
@@ -179,12 +181,12 @@ next_token :: proc(p: ^Parser) {
 }
 
 @(private = "file")
-parse_identifier :: proc(p: ^Parser) -> Node {
-	return Node_Identifier{transmute(string)p.cur_token.input}
+parse_identifier :: proc(p: ^Parser) -> ma.Node {
+	return ma.Node_Identifier{transmute(string)p.cur_token.input}
 }
 
 @(private = "file")
-parse_integer_literal :: proc(p: ^Parser) -> Node {
+parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
 	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
 	if !ok {
 		msg := st.builder_make(p.temp_allocator)
@@ -198,12 +200,12 @@ parse_integer_literal :: proc(p: ^Parser) -> Node {
 }
 
 @(private = "file")
-parse_boolean_literal :: proc(p: ^Parser) -> Node {
+parse_boolean_literal :: proc(p: ^Parser) -> ma.Node {
 	return current_token_is(p, .True)
 }
 
 @(private = "file")
-parse_let_statement :: proc(p: ^Parser) -> Node {
+parse_let_statement :: proc(p: ^Parser) -> ma.Node {
 	if !expect_peek(p, .Identifier) do return nil
 
 	name := transmute(string)p.cur_token.input
@@ -217,11 +219,11 @@ parse_let_statement :: proc(p: ^Parser) -> Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return Node_Let_Statement{name = name, value = new_clone(value, p.pool)}
+	return ma.Node_Let_Statement{name = name, value = new_clone(value, p.pool)}
 }
 
 @(private = "file")
-parse_return_statement :: proc(p: ^Parser) -> Node {
+parse_return_statement :: proc(p: ^Parser) -> ma.Node {
 	next_token(p)
 
 	ret_val := parse_expression(p, .Lowest)
@@ -229,11 +231,11 @@ parse_return_statement :: proc(p: ^Parser) -> Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return Node_Return_Statement{ret_val = new_clone(ret_val, p.pool)}
+	return ma.Node_Return_Statement{ret_val = new_clone(ret_val, p.pool)}
 }
 
 @(private = "file")
-parse_prefix_expression :: proc(p: ^Parser) -> Node {
+parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
 	op := transmute(string)p.cur_token.input
 
 	next_token(p)
@@ -241,11 +243,11 @@ parse_prefix_expression :: proc(p: ^Parser) -> Node {
 	operand := parse_expression(p, .Prefix)
 	if operand == nil do return nil
 
-	return Node_Prefix_Expression{op = op, operand = new_clone(operand, p.pool)}
+	return ma.Node_Prefix_Expression{op = op, operand = new_clone(operand, p.pool)}
 }
 
 @(private = "file")
-parse_infix_expression :: proc(p: ^Parser, left: Node) -> Node {
+parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
 	op := transmute(string)p.cur_token.input
 
 	prec := cur_precedence(p)
@@ -253,7 +255,7 @@ parse_infix_expression :: proc(p: ^Parser, left: Node) -> Node {
 	right := parse_expression(p, prec)
 	if right == nil do return nil
 
-	return Node_Infix_Expression {
+	return ma.Node_Infix_Expression {
 		op = op,
 		left = new_clone(left, p.pool),
 		right = new_clone(right, p.pool),
@@ -261,7 +263,7 @@ parse_infix_expression :: proc(p: ^Parser, left: Node) -> Node {
 }
 
 @(private = "file")
-parse_grouped_expression :: proc(p: ^Parser) -> Node {
+parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
 	next_token(p)
 	expr := parse_expression(p, .Lowest)
 
@@ -270,8 +272,8 @@ parse_grouped_expression :: proc(p: ^Parser) -> Node {
 }
 
 @(private = "file")
-parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
-	block := make(Node_Block_Expression, p.pool)
+parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
+	block := make(ma.Node_Block_Expression, p.pool)
 
 	next_token(p)
 
@@ -286,7 +288,7 @@ parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
 }
 
 @(private = "file")
-parse_if_expression :: proc(p: ^Parser) -> Node {
+parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 	next_token(p)
 
 	condition := parse_expression(p, .Lowest)
@@ -296,7 +298,7 @@ parse_if_expression :: proc(p: ^Parser) -> Node {
 
 	consequence := parse_block_statement(p)
 
-	alternative: Node_Block_Expression = nil
+	alternative: ma.Node_Block_Expression = nil
 
 	if peek_token_is(p, .Else) {
 		next_token(p)
@@ -306,7 +308,7 @@ parse_if_expression :: proc(p: ^Parser) -> Node {
 		alternative = parse_block_statement(p)
 	}
 
-	return Node_If_Expression {
+	return ma.Node_If_Expression {
 		condition = new_clone(condition, p.pool),
 		consequence = consequence,
 		alternative = alternative,
@@ -314,8 +316,8 @@ parse_if_expression :: proc(p: ^Parser) -> Node {
 }
 
 @(private = "file")
-parse_function_parameters :: proc(p: ^Parser) -> [dynamic]Node_Identifier {
-	identifiers := make([dynamic]Node_Identifier, p.pool)
+parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
+	identifiers := make([dynamic]ma.Node_Identifier, p.pool)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -324,12 +326,12 @@ parse_function_parameters :: proc(p: ^Parser) -> [dynamic]Node_Identifier {
 
 	next_token(p)
 
-	append(&identifiers, Node_Identifier{value = transmute(string)p.cur_token.input})
+	append(&identifiers, ma.Node_Identifier{value = transmute(string)p.cur_token.input})
 
 	for peek_token_is(p, .Comma) {
 		next_token(p)
 		next_token(p)
-		append(&identifiers, Node_Identifier{value = transmute(string)p.cur_token.input})
+		append(&identifiers, ma.Node_Identifier{value = transmute(string)p.cur_token.input})
 	}
 
 	if !expect_peek(p, .Right_Paren) do return nil
@@ -338,7 +340,7 @@ parse_function_parameters :: proc(p: ^Parser) -> [dynamic]Node_Identifier {
 }
 
 @(private = "file")
-parse_function_literal :: proc(p: ^Parser) -> Node {
+parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 	if !expect_peek(p, .Left_Paren) do return nil
 
 	parameters := parse_function_parameters(p)
@@ -347,12 +349,12 @@ parse_function_literal :: proc(p: ^Parser) -> Node {
 
 	body := parse_block_statement(p)
 
-	return Node_Function_Literal{body = body, parameters = parameters}
+	return ma.Node_Function_Literal{body = body, parameters = parameters}
 }
 
 @(private = "file")
-parse_call_arguments :: proc(p: ^Parser) -> [dynamic]Node {
-	args := make([dynamic]Node, p.pool)
+parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
+	args := make([dynamic]ma.Node, p.pool)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -380,11 +382,11 @@ parse_call_arguments :: proc(p: ^Parser) -> [dynamic]Node {
 }
 
 @(private = "file")
-parse_call_expression :: proc(p: ^Parser, function: Node) -> Node {
+parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
 	arguments := parse_call_arguments(p)
 	if arguments == nil do return nil
 
-	return Node_Call_Expression{function = new_clone(function, p.pool), arguments = arguments}
+	return ma.Node_Call_Expression{function = new_clone(function, p.pool), arguments = arguments}
 }
 
 @(private = "file")
@@ -396,7 +398,7 @@ no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
 }
 
 @(private = "file")
-parse_expression :: proc(p: ^Parser, prec: Precedence) -> Node {
+parse_expression :: proc(p: ^Parser, prec: Precedence) -> ma.Node {
 	prefix := prefix_parse_fns[p.cur_token.type]
 
 	if prefix == nil {
@@ -419,7 +421,7 @@ parse_expression :: proc(p: ^Parser, prec: Precedence) -> Node {
 }
 
 @(private = "file")
-parse_expression_statement :: proc(p: ^Parser) -> Node {
+parse_expression_statement :: proc(p: ^Parser) -> ma.Node {
 	expr := parse_expression(p, .Lowest)
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
@@ -428,7 +430,7 @@ parse_expression_statement :: proc(p: ^Parser) -> Node {
 }
 
 @(private = "file")
-parse_statement :: proc(p: ^Parser) -> Node {
+parse_statement :: proc(p: ^Parser) -> ma.Node {
 	#partial switch p.cur_token.type {
 	case .Let:
 		return parse_let_statement(p)
@@ -441,12 +443,12 @@ parse_statement :: proc(p: ^Parser) -> Node {
 }
 
 @(private = "file")
-parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
+parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	p.l->init(input)
 	next_token(p)
 	next_token(p)
 
-	program := make(Node_Program, p.temp_allocator)
+	program := make(ma.Node_Program, p.temp_allocator)
 
 	for p.cur_token.type != .EOF {
 		if stmt := parse_statement(p); stmt != nil {

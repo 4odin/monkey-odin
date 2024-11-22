@@ -2,7 +2,7 @@ package monkey_evaluator
 
 import "core:fmt"
 import "core:reflect"
-import s "core:strings"
+import st "core:strings"
 
 Null :: struct {}
 
@@ -33,13 +33,13 @@ obj_inspect :: proc {
 }
 
 @(private = "file")
-_obj_inspect_alter :: proc(obj: Object, sb: ^s.Builder) {
+_obj_inspect_alter :: proc(obj: Object, sb: ^st.Builder) {
 	obj := obj
 	_obj_inspect_main(&obj, sb)
 }
 
 @(private = "file")
-_obj_inspect_main :: proc(obj: ^Object, sb: ^s.Builder) {
+_obj_inspect_main :: proc(obj: ^Object, sb: ^st.Builder) {
 	#partial switch data in obj {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
