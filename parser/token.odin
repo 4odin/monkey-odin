@@ -45,7 +45,7 @@ Token :: struct {
 	input: []u8,
 }
 
-token_create :: proc(type: Token_Type, input: []u8, start: int, length: int) -> Token {
+token :: proc(type: Token_Type, input: []u8, start: int, length: int) -> Token {
 	return {type, input[start:start + length]}
 }
 

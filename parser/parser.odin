@@ -8,24 +8,26 @@ import "core:strconv"
 import s "core:strings"
 
 Parser :: struct {
-	l:              Lexer,
-	cur_token:      Token,
-	peek_token:     Token,
+	l:               Lexer,
+	cur_token:       Token,
+	peek_token:      Token,
 
 	// storage fields
-	errors:         [dynamic]string,
-	_arena:         vmem.Arena,
-	pool:           mem.Allocator,
-	temp_allocator: mem.Allocator,
+	errors:          [dynamic]string,
+	_arena:          vmem.Arena,
+	pool:            mem.Allocator,
+	temp_allocator:  mem.Allocator,
 
 	// methods
-	config:         proc(
+	config:          proc(
 		p: ^Parser,
+		pool_reserved_block_size: uint = 10 * mem.Megabyte,
 		temp_allocator := context.temp_allocator,
 	) -> mem.Allocator_Error,
-	parse:          proc(p: ^Parser, input: string) -> Node_Program,
-	free:           proc(p: ^Parser),
-	clear_errors:   proc(p: ^Parser),
+	parse:           proc(p: ^Parser, input: string) -> Node_Program,
+	pool_total_used: proc(p: ^Parser) -> uint,
+	free:            proc(p: ^Parser),
+	clear_errors:    proc(p: ^Parser),
 }
 
 parser :: proc() -> Parser {
@@ -33,6 +35,7 @@ parser :: proc() -> Parser {
 		l = lexer(),
 		config = parser_config,
 		parse = parse_program,
+		pool_total_used = parser_pool_total_used,
 		free = parser_free,
 		clear_errors = parser_clear_errors,
 	}
@@ -54,34 +57,16 @@ Precedence :: enum {
 }
 
 @(private = "file")
-precedences := [Token_Type]Precedence {
-	.Illigal      = .Lowest,
-	.EOF          = .Lowest,
-	.Identifier   = .Lowest,
-	.Int          = .Lowest,
-	.Assign       = .Lowest,
+precedences := #partial [Token_Type]Precedence {
 	.Plus         = .Sum,
 	.Minus        = .Sum,
-	.Bang         = .Lowest,
 	.Asterisk     = .Product,
 	.Slash        = .Product,
 	.Less_Than    = .Less_Greater,
 	.Greater_Than = .Less_Greater,
 	.Equal        = .Equals,
 	.Not_Equal    = .Equals,
-	.Comma        = .Lowest,
-	.Semicolon    = .Lowest,
 	.Left_Paren   = .Call,
-	.Right_Paren  = .Lowest,
-	.Left_Brace   = .Lowest,
-	.Right_Brace  = .Lowest,
-	.Function     = .Lowest,
-	.Let          = .Lowest,
-	.True         = .Lowest,
-	.False        = .Lowest,
-	.If           = .Lowest,
-	.Else         = .Lowest,
-	.Return       = .Lowest,
 }
 
 @(private = "file")
@@ -101,65 +86,29 @@ Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Maybe(Monkey_Data)
 Infix_Parse_Fn :: #type proc(p: ^Parser, left: ^Monkey_Data) -> Maybe(Monkey_Data)
 
 @(private = "file")
-prefix_parse_fns := [Token_Type]Prefix_Parse_Fn {
-	.Illigal      = nil,
-	.EOF          = nil,
-	.Identifier   = parse_identifier,
-	.Int          = parse_integer_literal,
-	.Assign       = nil,
-	.Plus         = nil,
-	.Minus        = parse_prefix_expression,
-	.Bang         = parse_prefix_expression,
-	.Asterisk     = nil,
-	.Slash        = nil,
-	.Less_Than    = nil,
-	.Greater_Than = nil,
-	.Equal        = nil,
-	.Not_Equal    = nil,
-	.Comma        = nil,
-	.Semicolon    = nil,
-	.Left_Paren   = parse_grouped_expression,
-	.Right_Paren  = nil,
-	.Left_Brace   = nil,
-	.Right_Brace  = nil,
-	.Function     = parse_function_literal,
-	.Let          = nil,
-	.True         = parse_boolean_literal,
-	.False        = parse_boolean_literal,
-	.If           = parse_if_expression,
-	.Else         = nil,
-	.Return       = nil,
+prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
+	.Identifier = parse_identifier,
+	.Int        = parse_integer_literal,
+	.Minus      = parse_prefix_expression,
+	.Bang       = parse_prefix_expression,
+	.Left_Paren = parse_grouped_expression,
+	.Function   = parse_function_literal,
+	.True       = parse_boolean_literal,
+	.False      = parse_boolean_literal,
+	.If         = parse_if_expression,
 }
 
 @(private = "file")
-infix_parse_fns := [Token_Type]Infix_Parse_Fn {
-	.Illigal      = nil,
-	.EOF          = nil,
-	.Identifier   = nil,
-	.Int          = nil,
-	.Assign       = nil,
+infix_parse_fns := #partial [Token_Type]Infix_Parse_Fn {
 	.Plus         = parse_infix_expression,
 	.Minus        = parse_infix_expression,
-	.Bang         = nil,
 	.Asterisk     = parse_infix_expression,
 	.Slash        = parse_infix_expression,
 	.Less_Than    = parse_infix_expression,
 	.Greater_Than = parse_infix_expression,
 	.Equal        = parse_infix_expression,
 	.Not_Equal    = parse_infix_expression,
-	.Comma        = nil,
-	.Semicolon    = nil,
 	.Left_Paren   = parse_call_expression,
-	.Right_Paren  = nil,
-	.Left_Brace   = nil,
-	.Right_Brace  = nil,
-	.Function     = nil,
-	.Let          = nil,
-	.True         = nil,
-	.False        = nil,
-	.If           = nil,
-	.Else         = nil,
-	.Return       = nil,
 }
 
 @(private = "file")
@@ -195,11 +144,12 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 @(private = "file")
 parser_config :: proc(
 	p: ^Parser,
+	pool_reserved_block_size: uint = 10 * mem.Megabyte,
 	temp_allocator := context.temp_allocator,
 ) -> mem.Allocator_Error {
 	p.temp_allocator = temp_allocator
 
-	err := vmem.arena_init_growing(&p._arena, 10 * mem.Megabyte)
+	err := vmem.arena_init_growing(&p._arena, pool_reserved_block_size)
 	p.pool = vmem.arena_allocator(&p._arena)
 
 	p.errors = make([dynamic]string, 0, 20, p.temp_allocator)
@@ -209,13 +159,17 @@ parser_config :: proc(
 
 @(private = "file")
 parser_free :: proc(p: ^Parser) {
-	parser_clear_errors(p)
 	vmem.arena_destroy(&p._arena)
 }
 
 @(private = "file")
+parser_pool_total_used :: proc(p: ^Parser) -> uint {
+	return p._arena.total_reserved
+}
+
+@(private = "file")
 parser_clear_errors :: proc(p: ^Parser) {
-	clear_dynamic_array(&p.errors)
+	clear(&p.errors)
 }
 
 @(private = "file")
@@ -243,6 +197,7 @@ parse_integer_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	return value
 }
 
+@(private = "file")
 parse_boolean_literal :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	return current_token_is(p, .True)
 }
@@ -359,6 +314,7 @@ parse_if_expression :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 	}
 }
 
+@(private = "file")
 parse_function_parameters :: proc(p: ^Parser) -> Maybe([dynamic]Node_Identifier) {
 	identifiers := make([dynamic]Node_Identifier, p.pool)
 
@@ -485,12 +441,9 @@ parse_statement :: proc(p: ^Parser) -> Maybe(Monkey_Data) {
 
 	case .Return:
 		return parse_return_statement(p)
-
-	case:
-		return parse_expression_statement(p)
 	}
 
-	return nil
+	return parse_expression_statement(p)
 }
 
 @(private = "file")

@@ -118,8 +118,8 @@ let foobar = y;
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -159,8 +159,8 @@ return 993322;
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -205,8 +205,8 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -239,8 +239,8 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -272,8 +272,8 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -307,11 +307,11 @@ prefix_test_case_is_ok :: proc(
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
+	defer if p->pool_total_used() != 0 {
 		log.errorf(
 			"test [%d] has failed, parser has unfreed memory: %v",
 			test_number,
-			p._arena.total_used,
+			p->pool_total_used(),
 		)
 	}
 	defer p->free()
@@ -425,8 +425,8 @@ infix_test_case_is_valid :: proc(
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -485,8 +485,8 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -566,8 +566,8 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -622,8 +622,8 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -689,8 +689,8 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 
@@ -759,8 +759,8 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p._arena.total_used != 0 {
-		log.errorf("parser has unfreed memory: %v", p._arena.total_used)
+	defer if p->pool_total_used() != 0 {
+		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
 	}
 	defer p->free()
 

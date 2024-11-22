@@ -37,8 +37,8 @@ main :: proc() {
 
 			mem.tracking_allocator_destroy(&track)
 
-			if parser._arena.total_used != 0 {
-				fmt.eprintfln("parser has unfreed memory: %v", parser._arena.total_used)
+			if parser->pool_total_used() != 0 {
+				fmt.eprintfln("parser has unfreed memory: %v", parser->pool_total_used())
 			}
 		}
 	}

@@ -31,7 +31,7 @@ is_digit :: proc(ch: u8) -> bool {
 
 @(private = "file")
 create_single_letter_tok :: proc(l: ^Lexer, type: Token_Type) -> Token {
-	return token_create(type, l.input, l.pos, 1)
+	return token(type, l.input, l.pos, 1)
 }
 
 @(private = "file")
@@ -62,7 +62,7 @@ create_identifier :: proc(l: ^Lexer) -> Token {
 
 	for is_letter(l.ch) do read_char(l)
 
-	return token_create(.Identifier, l.input, start, l.pos - start)
+	return token(.Identifier, l.input, start, l.pos - start)
 }
 
 @(private = "file")
@@ -71,7 +71,7 @@ create_number :: proc(l: ^Lexer) -> Token {
 
 	for is_digit(l.ch) do read_char(l)
 
-	return token_create(.Int, l.input, start, l.pos - start)
+	return token(.Int, l.input, start, l.pos - start)
 }
 
 @(private = "file")
@@ -95,7 +95,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 		if peek_char(l) == '=' {
 			start := l.pos
 			read_char(l)
-			tok = token_create(.Equal, l.input, start, 2)
+			tok = token(.Equal, l.input, start, 2)
 		} else do tok = create_single_letter_tok(l, .Assign)
 
 	case '+':
@@ -108,7 +108,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 		if peek_char(l) == '=' {
 			start := l.pos
 			read_char(l)
-			tok = token_create(.Not_Equal, l.input, start, 2)
+			tok = token(.Not_Equal, l.input, start, 2)
 		} else do tok = create_single_letter_tok(l, .Bang)
 
 	case '/':
