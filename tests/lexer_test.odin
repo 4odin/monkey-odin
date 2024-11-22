@@ -150,6 +150,7 @@ if 5 < 10 {
 				tok.type,
 			)
 			testing.fail(t)
+			continue
 		}
 
 		if transmute(string)tok.input != test_case.expected_literal {

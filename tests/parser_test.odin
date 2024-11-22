@@ -26,7 +26,7 @@ parser_has_error :: proc(p: ^mp.Parser) -> bool {
 stmt_is_let :: proc(s: ^mp.Node, name: string, expected_value: Literal) -> bool {
 	let_stmt, ok := s.(mp.Node_Let_Statement)
 	if !ok {
-		log.errorf("s is not a let statement. got='%v'", mp.ast_get_type(s))
+		log.errorf("s is not a let statement. got='%v'", mp.ast_type(s))
 		return false
 	}
 
@@ -41,7 +41,7 @@ stmt_is_let :: proc(s: ^mp.Node, name: string, expected_value: Literal) -> bool 
 integer_literal_is_valid :: proc(il: ^mp.Node, expected_value: int) -> bool {
 	val, ok := il.(int)
 	if !ok {
-		log.errorf("il is not 'int', got='%v'", mp.ast_get_type(il))
+		log.errorf("il is not 'int', got='%v'", mp.ast_type(il))
 		return false
 	}
 
@@ -56,7 +56,7 @@ integer_literal_is_valid :: proc(il: ^mp.Node, expected_value: int) -> bool {
 identifier_is_valid :: proc(expr: ^mp.Node, expected_value: string) -> bool {
 	ident, ok := expr.(mp.Node_Identifier)
 	if !ok {
-		log.errorf("expression is not Node_Identifier, got='%v'", mp.ast_get_type(expr))
+		log.errorf("expression is not Node_Identifier, got='%v'", mp.ast_type(expr))
 		return false
 	}
 
@@ -71,7 +71,7 @@ identifier_is_valid :: proc(expr: ^mp.Node, expected_value: string) -> bool {
 boolean_is_valid :: proc(b: ^mp.Node, expected_value: bool) -> bool {
 	b_lit, ok := b.(bool)
 	if !ok {
-		log.errorf("expression is not boolean, got='%v'", mp.ast_get_type(b))
+		log.errorf("expression is not boolean, got='%v'", mp.ast_type(b))
 		return false
 	}
 
@@ -188,11 +188,7 @@ return 993322;
 		stmt := program[i]
 		_, ok := stmt.(mp.Node_Return_Statement)
 		if !ok {
-			log.errorf(
-				"test [%d]: stmt is not a return statement. got='%v'",
-				i,
-				mp.ast_get_type(stmt),
-			)
+			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, mp.ast_type(stmt))
 			continue
 		}
 	}
@@ -337,7 +333,7 @@ prefix_test_case_is_ok :: proc(
 		log.errorf(
 			"test [%d]: program[0] is not 'Node_Prefix_Expression', got='%v'",
 			test_number,
-			mp.ast_get_type(program[0]),
+			mp.ast_type(program[0]),
 		)
 		return false
 	}
@@ -391,10 +387,7 @@ infix_expression_is_valid :: proc(
 ) -> bool {
 	infix, ok := expression.(mp.Node_Infix_Expression)
 	if !ok {
-		log.errorf(
-			"expression is not 'Node_Infix_Expression', got='%v'",
-			mp.ast_get_type(expression),
-		)
+		log.errorf("expression is not 'Node_Infix_Expression', got='%v'", mp.ast_type(expression))
 		return false
 	}
 
@@ -586,7 +579,7 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 
 	stmt, ok := program[0].(mp.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_get_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -642,7 +635,7 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 
 	stmt, ok := program[0].(mp.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_get_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", mp.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -709,10 +702,7 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 
 	stmt, ok := program[0].(mp.Node_Function_Literal)
 	if !ok {
-		log.errorf(
-			"program[0] is not Node_Function_Literal, got='%v'",
-			mp.ast_get_type(program[0]),
-		)
+		log.errorf("program[0] is not Node_Function_Literal, got='%v'", mp.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -779,7 +769,7 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 
 	stmt, ok := program[0].(mp.Node_Call_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_Call_Expression, got='%v'", mp.ast_get_type(program[0]))
+		log.errorf("program[0] is not Node_Call_Expression, got='%v'", mp.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}

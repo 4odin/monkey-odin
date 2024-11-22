@@ -87,16 +87,16 @@ Node_Index_Expression :: struct {
 	index:   ^Node,
 }
 
-_ast_get_type_val :: reflect.union_variant_typeid
-
-@(private = "file")
-_ast_get_type_ptr :: proc(ast: ^Node) -> typeid {
-	return reflect.union_variant_typeid(ast^)
+ast_type :: proc {
+	_ast_type_val,
+	_ast_type_ptr,
 }
 
-ast_get_type :: proc {
-	_ast_get_type_val,
-	_ast_get_type_ptr,
+_ast_type_val :: reflect.union_variant_typeid
+
+@(private = "file")
+_ast_type_ptr :: proc(ast: ^Node) -> typeid {
+	return reflect.union_variant_typeid(ast^)
 }
 
 ast_to_string :: proc {
@@ -105,7 +105,7 @@ ast_to_string :: proc {
 }
 
 @(private = "file")
-_ast_to_string_alter :: proc(#by_ptr ast: Node, sb: ^s.Builder) {
+_ast_to_string_alter :: proc(ast: Node, sb: ^s.Builder) {
 	ast := ast
 	_ast_to_string_main(&ast, sb)
 }
