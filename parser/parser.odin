@@ -5,7 +5,7 @@ import "core:mem"
 import vmem "core:mem/virtual"
 import "core:strconv"
 
-import s "core:strings"
+import st "core:strings"
 
 Parser :: struct {
 	l:               Lexer,
@@ -80,10 +80,10 @@ cur_precedence :: proc(p: ^Parser) -> Precedence {
 }
 
 @(private = "file")
-Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Maybe(Node)
+Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Node
 
 @(private = "file")
-Infix_Parse_Fn :: #type proc(p: ^Parser, left: ^Node) -> Maybe(Node)
+Infix_Parse_Fn :: #type proc(p: ^Parser, left: Node) -> Node
 
 @(private = "file")
 prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
@@ -113,10 +113,10 @@ infix_parse_fns := #partial [Token_Type]Infix_Parse_Fn {
 
 @(private = "file")
 peek_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := s.builder_make(p.temp_allocator)
+	msg := st.builder_make(p.temp_allocator)
 
 	fmt.sbprintf(&msg, "expected next token to be '%s', got '%s' instead", t, p.peek_token.type)
-	append(&p.errors, s.to_string(msg))
+	append(&p.errors, st.to_string(msg))
 }
 
 
@@ -179,18 +179,18 @@ next_token :: proc(p: ^Parser) {
 }
 
 @(private = "file")
-parse_identifier :: proc(p: ^Parser) -> Maybe(Node) {
+parse_identifier :: proc(p: ^Parser) -> Node {
 	return Node_Identifier{transmute(string)p.cur_token.input}
 }
 
 @(private = "file")
-parse_integer_literal :: proc(p: ^Parser) -> Maybe(Node) {
+parse_integer_literal :: proc(p: ^Parser) -> Node {
 	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
 	if !ok {
-		msg := s.builder_make(p.temp_allocator)
+		msg := st.builder_make(p.temp_allocator)
 
 		fmt.sbprintf(&msg, "could not parse %s as integer", p.l.input)
-		append(&p.errors, s.to_string(msg))
+		append(&p.errors, st.to_string(msg))
 		return nil
 	}
 
@@ -198,12 +198,12 @@ parse_integer_literal :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_boolean_literal :: proc(p: ^Parser) -> Maybe(Node) {
+parse_boolean_literal :: proc(p: ^Parser) -> Node {
 	return current_token_is(p, .True)
 }
 
 @(private = "file")
-parse_let_statement :: proc(p: ^Parser) -> Maybe(Node) {
+parse_let_statement :: proc(p: ^Parser) -> Node {
 	if !expect_peek(p, .Identifier) do return nil
 
 	name := transmute(string)p.cur_token.input
@@ -212,8 +212,8 @@ parse_let_statement :: proc(p: ^Parser) -> Maybe(Node) {
 
 	next_token(p)
 
-	value, ok := parse_expression(p, .Lowest).?
-	if !ok do return nil
+	value := parse_expression(p, .Lowest)
+	if value == nil do return nil
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
@@ -221,11 +221,11 @@ parse_let_statement :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_return_statement :: proc(p: ^Parser) -> Maybe(Node) {
+parse_return_statement :: proc(p: ^Parser) -> Node {
 	next_token(p)
 
-	ret_val, ok := parse_expression(p, .Lowest).?
-	if !ok do return nil
+	ret_val := parse_expression(p, .Lowest)
+	if ret_val == nil do return nil
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
@@ -233,36 +233,35 @@ parse_return_statement :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_prefix_expression :: proc(p: ^Parser) -> Maybe(Node) {
+parse_prefix_expression :: proc(p: ^Parser) -> Node {
 	op := transmute(string)p.cur_token.input
 
 	next_token(p)
 
-	operand, ok := parse_expression(p, .Prefix).?
-	if (!ok) do return nil
+	operand := parse_expression(p, .Prefix)
+	if operand == nil do return nil
 
 	return Node_Prefix_Expression{op = op, operand = new_clone(operand, p.pool)}
 }
 
 @(private = "file")
-parse_infix_expression :: proc(p: ^Parser, left: ^Node) -> Maybe(Node) {
+parse_infix_expression :: proc(p: ^Parser, left: Node) -> Node {
 	op := transmute(string)p.cur_token.input
 
 	prec := cur_precedence(p)
 	next_token(p)
-	right, ok := parse_expression(p, prec).?
-
-	if !ok do return nil
+	right := parse_expression(p, prec)
+	if right == nil do return nil
 
 	return Node_Infix_Expression {
 		op = op,
-		left = new_clone(left^, p.pool),
+		left = new_clone(left, p.pool),
 		right = new_clone(right, p.pool),
 	}
 }
 
 @(private = "file")
-parse_grouped_expression :: proc(p: ^Parser) -> Maybe(Node) {
+parse_grouped_expression :: proc(p: ^Parser) -> Node {
 	next_token(p)
 	expr := parse_expression(p, .Lowest)
 
@@ -277,8 +276,8 @@ parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
 	next_token(p)
 
 	for !current_token_is(p, .Right_Brace) && !current_token_is(p, .EOF) {
-		stmt, ok := parse_statement(p).?
-		if ok do append(&block, stmt)
+		stmt := parse_statement(p)
+		if stmt != nil do append(&block, stmt)
 
 		next_token(p)
 	}
@@ -287,11 +286,11 @@ parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
 }
 
 @(private = "file")
-parse_if_expression :: proc(p: ^Parser) -> Maybe(Node) {
+parse_if_expression :: proc(p: ^Parser) -> Node {
 	next_token(p)
 
-	condition, ok := parse_expression(p, .Lowest).?
-	if !ok do return nil
+	condition := parse_expression(p, .Lowest)
+	if condition == nil do return nil
 
 	if !expect_peek(p, .Left_Brace) do return nil
 
@@ -315,7 +314,7 @@ parse_if_expression :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_function_parameters :: proc(p: ^Parser) -> Maybe([dynamic]Node_Identifier) {
+parse_function_parameters :: proc(p: ^Parser) -> [dynamic]Node_Identifier {
 	identifiers := make([dynamic]Node_Identifier, p.pool)
 
 	if peek_token_is(p, .Right_Paren) {
@@ -339,11 +338,10 @@ parse_function_parameters :: proc(p: ^Parser) -> Maybe([dynamic]Node_Identifier)
 }
 
 @(private = "file")
-parse_function_literal :: proc(p: ^Parser) -> Maybe(Node) {
+parse_function_literal :: proc(p: ^Parser) -> Node {
 	if !expect_peek(p, .Left_Paren) do return nil
 
-	parameters, ok := parse_function_parameters(p).?
-	if !ok do return nil
+	parameters := parse_function_parameters(p)
 
 	if !expect_peek(p, .Left_Brace) do return nil
 
@@ -353,7 +351,7 @@ parse_function_literal :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_call_arguments :: proc(p: ^Parser) -> Maybe([dynamic]Node) {
+parse_call_arguments :: proc(p: ^Parser) -> [dynamic]Node {
 	args := make([dynamic]Node, p.pool)
 
 	if peek_token_is(p, .Right_Paren) {
@@ -362,8 +360,7 @@ parse_call_arguments :: proc(p: ^Parser) -> Maybe([dynamic]Node) {
 	}
 
 	next_token(p)
-	arg, ok := parse_expression(p, .Lowest).?
-	if !ok do return nil
+	arg := parse_expression(p, .Lowest)
 
 	append(&args, arg)
 
@@ -371,8 +368,8 @@ parse_call_arguments :: proc(p: ^Parser) -> Maybe([dynamic]Node) {
 		next_token(p)
 		next_token(p)
 
-		arg1, ok1 := parse_expression(p, .Lowest).?
-		if !ok1 do return nil
+		arg1 := parse_expression(p, .Lowest)
+		if arg1 == nil do return nil
 
 		append(&args, arg1)
 	}
@@ -383,23 +380,23 @@ parse_call_arguments :: proc(p: ^Parser) -> Maybe([dynamic]Node) {
 }
 
 @(private = "file")
-parse_call_expression :: proc(p: ^Parser, left: ^Node) -> Maybe(Node) {
-	arguments, ok := parse_call_arguments(p).?
-	if !ok do return nil
+parse_call_expression :: proc(p: ^Parser, function: Node) -> Node {
+	arguments := parse_call_arguments(p)
+	if arguments == nil do return nil
 
-	return Node_Call_Expression{function = new_clone(left^, p.pool), arguments = arguments}
+	return Node_Call_Expression{function = new_clone(function, p.pool), arguments = arguments}
 }
 
 @(private = "file")
 no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := s.builder_make(p.temp_allocator)
+	msg := st.builder_make(p.temp_allocator)
 
 	fmt.sbprintf(&msg, "unexpected token '%v'", t)
-	append(&p.errors, s.to_string(msg))
+	append(&p.errors, st.to_string(msg))
 }
 
 @(private = "file")
-parse_expression :: proc(p: ^Parser, prec: Precedence) -> Maybe(Node) {
+parse_expression :: proc(p: ^Parser, prec: Precedence) -> Node {
 	prefix := prefix_parse_fns[p.cur_token.type]
 
 	if prefix == nil {
@@ -410,22 +407,19 @@ parse_expression :: proc(p: ^Parser, prec: Precedence) -> Maybe(Node) {
 	left_expr := prefix(p)
 
 	for !peek_token_is(p, .Semicolon) && prec < peek_precedence(p) {
-		left, ok := left_expr.?
-		if !ok do return nil
-
 		infix := infix_parse_fns[p.peek_token.type]
 		if infix == nil do return left_expr
 
 		next_token(p)
 
-		left_expr = infix(p, &left)
+		left_expr = infix(p, left_expr)
 	}
 
 	return left_expr
 }
 
 @(private = "file")
-parse_expression_statement :: proc(p: ^Parser) -> Maybe(Node) {
+parse_expression_statement :: proc(p: ^Parser) -> Node {
 	expr := parse_expression(p, .Lowest)
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
@@ -434,7 +428,7 @@ parse_expression_statement :: proc(p: ^Parser) -> Maybe(Node) {
 }
 
 @(private = "file")
-parse_statement :: proc(p: ^Parser) -> Maybe(Node) {
+parse_statement :: proc(p: ^Parser) -> Node {
 	#partial switch p.cur_token.type {
 	case .Let:
 		return parse_let_statement(p)
@@ -455,7 +449,7 @@ parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
 	program := make(Node_Program, p.temp_allocator)
 
 	for p.cur_token.type != .EOF {
-		if stmt, ok := parse_statement(p).?; ok {
+		if stmt := parse_statement(p); stmt != nil {
 			append(&program, stmt)
 		}
 		next_token(p)

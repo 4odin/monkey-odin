@@ -1,7 +1,7 @@
 package tests
 
 import "core:log"
-import s "core:strings"
+import st "core:strings"
 import "core:testing"
 
 import mp "../parser"
@@ -15,17 +15,17 @@ test_ast_to_string :: proc(t: ^testing.T) {
 	}
 	defer delete(program)
 
-	sb := s.builder_make(context.temp_allocator)
+	sb := st.builder_make(context.temp_allocator)
 	defer free_all(context.temp_allocator)
 	mp.ast_to_string(program, &sb)
 
 	expected := "let my_var = another_var;"
 
-	if s.to_string(sb) != expected {
+	if st.to_string(sb) != expected {
 		log.errorf(
 			"ast_to_string returned wrong value for program, expected='%s', got='%s'",
 			expected,
-			s.to_string(sb),
+			st.to_string(sb),
 		)
 		testing.fail(t)
 	}

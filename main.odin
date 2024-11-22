@@ -3,7 +3,7 @@ package monkey_odin
 import "core:fmt"
 import "core:mem"
 import "core:os"
-import s "core:strings"
+import st "core:strings"
 
 import mp "./parser"
 import u "./utils"
@@ -69,19 +69,19 @@ main :: proc() {
 
 		program := parser->parse(input)
 		if len(parser.errors) > 0 {
-			print_errors(&parser.errors)
+			print_errors(parser.errors)
 			parser->clear_errors()
 			continue
 		}
 
-		sb := s.builder_make(context.temp_allocator)
+		sb := st.builder_make(context.temp_allocator)
 		mp.ast_to_string(program, &sb)
 
-		fmt.println(s.to_string(sb))
+		fmt.println(st.to_string(sb))
 	}
 }
 
-print_errors :: proc(errors: ^[dynamic]string) {
+print_errors :: proc(errors: [dynamic]string) {
 	for err in errors {
 		fmt.eprintfln("-> %s", err)
 	}

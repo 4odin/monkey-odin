@@ -3,7 +3,7 @@ package tests
 import mp "../parser"
 
 import "core:log"
-import s "core:strings"
+import st "core:strings"
 import "core:testing"
 
 Literal :: union {
@@ -12,7 +12,7 @@ Literal :: union {
 	bool,
 }
 
-parser_has_error :: proc(p: ^mp.Parser) -> bool {
+parser_has_error :: proc(p: mp.Parser) -> bool {
 	if len(p.errors) == 0 do return false
 
 	log.errorf("parser has %d errors", len(p.errors))
@@ -23,7 +23,7 @@ parser_has_error :: proc(p: ^mp.Parser) -> bool {
 	return true
 }
 
-stmt_is_let :: proc(s: ^mp.Node, name: string, expected_value: Literal) -> bool {
+stmt_is_let :: proc(s: mp.Node, name: string, expected_value: Literal) -> bool {
 	let_stmt, ok := s.(mp.Node_Let_Statement)
 	if !ok {
 		log.errorf("s is not a let statement. got='%v'", mp.ast_type(s))
@@ -127,7 +127,7 @@ let foobar = y;
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -140,7 +140,7 @@ let foobar = y;
 	}
 
 	for test_case, i in tests {
-		if !stmt_is_let(&program[i], test_case.expected_identifier, test_case.expected_value) {
+		if !stmt_is_let(program[i], test_case.expected_identifier, test_case.expected_value) {
 			testing.fail(t)
 		}
 	}
@@ -168,7 +168,7 @@ return 993322;
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -210,7 +210,7 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -244,7 +244,7 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -277,7 +277,7 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -314,7 +314,7 @@ prefix_test_case_is_ok :: proc(
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		return false
 	}
 
@@ -425,7 +425,7 @@ infix_test_case_is_valid :: proc(
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		return false
 	}
 
@@ -485,18 +485,18 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		return false
 	}
 
-	sb := s.builder_make(context.temp_allocator)
+	sb := st.builder_make(context.temp_allocator)
 	mp.ast_to_string(program, &sb)
 
-	if s.to_string(sb) != expected {
+	if st.to_string(sb) != expected {
 		log.errorf(
 			"ast_to_string ris not valid, expected='%s', got='%s'",
 			expected,
-			s.to_string(sb),
+			st.to_string(sb),
 		)
 		return false
 	}
@@ -565,7 +565,7 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -621,7 +621,7 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -688,7 +688,7 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}
@@ -755,7 +755,7 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(&p) {
+	if parser_has_error(p) {
 		testing.fail(t)
 		return
 	}

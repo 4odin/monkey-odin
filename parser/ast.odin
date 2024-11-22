@@ -2,7 +2,7 @@ package monkey_parser
 
 import "core:fmt"
 import "core:reflect"
-import s "core:strings"
+import st "core:strings"
 
 Node :: union {
 	// Basics
@@ -105,13 +105,13 @@ ast_to_string :: proc {
 }
 
 @(private = "file")
-_ast_to_string_alter :: proc(ast: Node, sb: ^s.Builder) {
+_ast_to_string_alter :: proc(ast: Node, sb: ^st.Builder) {
 	ast := ast
 	_ast_to_string_main(&ast, sb)
 }
 
 @(private = "file")
-_ast_to_string_main :: proc(ast: ^Node, sb: ^s.Builder) {
+_ast_to_string_main :: proc(ast: ^Node, sb: ^st.Builder) {
 	#partial switch data in ast {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
@@ -120,8 +120,8 @@ _ast_to_string_main :: proc(ast: ^Node, sb: ^s.Builder) {
 		fmt.sbprint(sb, data.value)
 
 	case Node_Program:
-		for &stmt, i in data {
-			ast_to_string(&stmt, sb)
+		for stmt, i in data {
+			ast_to_string(stmt, sb)
 			if i < len(data) - 1 do fmt.sbprint(sb, "\n")
 		}
 
@@ -166,8 +166,8 @@ _ast_to_string_main :: proc(ast: ^Node, sb: ^s.Builder) {
 
 	case Node_Block_Expression:
 		fmt.sbprint(sb, "{ ")
-		for &stmt, i in data {
-			ast_to_string(&stmt, sb)
+		for stmt, i in data {
+			ast_to_string(stmt, sb)
 			if i < len(data) - 1 do fmt.sbprint(sb, "; ")
 		}
 		fmt.sbprint(sb, " }")
@@ -186,8 +186,8 @@ _ast_to_string_main :: proc(ast: ^Node, sb: ^s.Builder) {
 	case Node_Call_Expression:
 		ast_to_string(data.function, sb)
 		fmt.sbprint(sb, "(")
-		for &arg, i in data.arguments {
-			ast_to_string(&arg, sb)
+		for arg, i in data.arguments {
+			ast_to_string(arg, sb)
 
 			if i < len(data.arguments) - 1 do fmt.sbprint(sb, ", ")
 		}
