@@ -23,7 +23,7 @@ Parser :: struct {
 	// methods
 	config:          proc(
 		p: ^Parser,
-		pool_reserved_block_size: uint = 10 * mem.Megabyte,
+		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		temp_allocator := context.temp_allocator,
 	) -> mem.Allocator_Error,
 	parse:           proc(p: ^Parser, input: string) -> ma.Node_Program,
@@ -146,7 +146,7 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 @(private = "file")
 parser_config :: proc(
 	p: ^Parser,
-	pool_reserved_block_size: uint = 10 * mem.Megabyte,
+	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	temp_allocator := context.temp_allocator,
 ) -> mem.Allocator_Error {
 	p.temp_allocator = temp_allocator
@@ -154,7 +154,7 @@ parser_config :: proc(
 	err := vmem.arena_init_growing(&p._arena, pool_reserved_block_size)
 	p.pool = vmem.arena_allocator(&p._arena)
 
-	p.errors = make([dynamic]string, 0, 20, p.temp_allocator)
+	p.errors.allocator = context.temp_allocator
 
 	return err
 }
@@ -273,7 +273,8 @@ parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
-	block := make(ma.Node_Block_Expression, p.pool)
+	block: ma.Node_Block_Expression
+	block.allocator = p.pool
 
 	next_token(p)
 
@@ -317,7 +318,8 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
-	identifiers := make([dynamic]ma.Node_Identifier, p.pool)
+	identifiers: [dynamic]ma.Node_Identifier
+	identifiers.allocator = p.pool
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -354,7 +356,8 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
-	args := make([dynamic]ma.Node, p.pool)
+	args: [dynamic]ma.Node
+	args.allocator = p.pool
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -448,7 +451,8 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	next_token(p)
 	next_token(p)
 
-	program := make(ma.Node_Program, p.temp_allocator)
+	program: ma.Node_Program
+	program.allocator = p.pool
 
 	for p.cur_token.type != .EOF {
 		if stmt := parse_statement(p); stmt != nil {
