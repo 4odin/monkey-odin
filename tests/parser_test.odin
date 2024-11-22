@@ -23,7 +23,7 @@ parser_has_error :: proc(p: ^mp.Parser) -> bool {
 	return true
 }
 
-stmt_is_let :: proc(s: ^mp.Monkey_Data, name: string, expected_value: Literal) -> bool {
+stmt_is_let :: proc(s: ^mp.Node, name: string, expected_value: Literal) -> bool {
 	let_stmt, ok := s.(mp.Node_Let_Statement)
 	if !ok {
 		log.errorf("s is not a let statement. got='%v'", mp.ast_get_type(s))
@@ -38,7 +38,7 @@ stmt_is_let :: proc(s: ^mp.Monkey_Data, name: string, expected_value: Literal) -
 	return literal_value_is_valid(let_stmt.value, expected_value)
 }
 
-integer_literal_is_valid :: proc(il: ^mp.Monkey_Data, expected_value: int) -> bool {
+integer_literal_is_valid :: proc(il: ^mp.Node, expected_value: int) -> bool {
 	val, ok := il.(int)
 	if !ok {
 		log.errorf("il is not 'int', got='%v'", mp.ast_get_type(il))
@@ -53,7 +53,7 @@ integer_literal_is_valid :: proc(il: ^mp.Monkey_Data, expected_value: int) -> bo
 	return true
 }
 
-identifier_is_valid :: proc(expr: ^mp.Monkey_Data, expected_value: string) -> bool {
+identifier_is_valid :: proc(expr: ^mp.Node, expected_value: string) -> bool {
 	ident, ok := expr.(mp.Node_Identifier)
 	if !ok {
 		log.errorf("expression is not Node_Identifier, got='%v'", mp.ast_get_type(expr))
@@ -68,7 +68,7 @@ identifier_is_valid :: proc(expr: ^mp.Monkey_Data, expected_value: string) -> bo
 	return true
 }
 
-boolean_is_valid :: proc(b: ^mp.Monkey_Data, expected_value: bool) -> bool {
+boolean_is_valid :: proc(b: ^mp.Node, expected_value: bool) -> bool {
 	b_lit, ok := b.(bool)
 	if !ok {
 		log.errorf("expression is not boolean, got='%v'", mp.ast_get_type(b))
@@ -83,7 +83,7 @@ boolean_is_valid :: proc(b: ^mp.Monkey_Data, expected_value: bool) -> bool {
 	return true
 }
 
-literal_value_is_valid :: proc(lit: ^mp.Monkey_Data, expected: Literal) -> bool {
+literal_value_is_valid :: proc(lit: ^mp.Node, expected: Literal) -> bool {
 	switch v in expected {
 	case int:
 		return integer_literal_is_valid(lit, v)
@@ -384,7 +384,7 @@ test_parsing_prefix_expressions :: proc(t: ^testing.T) {
 }
 
 infix_expression_is_valid :: proc(
-	expression: ^mp.Monkey_Data,
+	expression: ^mp.Node,
 	left_value: Literal,
 	operator: string,
 	right_value: Literal,
@@ -497,8 +497,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	}
 
 	sb := s.builder_make(context.temp_allocator)
-	prog := mp.Monkey_Data(program)
-	mp.ast_to_string(&prog, &sb)
+	mp.ast_to_string(program, &sb)
 
 	if s.to_string(sb) != expected {
 		log.errorf(

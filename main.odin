@@ -67,17 +67,15 @@ main :: proc() {
 
 		if input[:len(QUIT_CMD)] == QUIT_CMD do return
 
-		prog := parser->parse(input)
+		program := parser->parse(input)
 		if len(parser.errors) > 0 {
 			print_errors(&parser.errors)
 			parser->clear_errors()
 			continue
 		}
 
-		program := mp.Monkey_Data(prog)
-
 		sb := s.builder_make(context.temp_allocator)
-		mp.ast_to_string(&program, &sb)
+		mp.ast_to_string(program, &sb)
 
 		fmt.println(s.to_string(sb))
 	}

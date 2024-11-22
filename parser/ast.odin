@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:reflect"
 import s "core:strings"
 
-Monkey_Data :: union {
+Node :: union {
 	// Basics
 	int,
 	bool,
@@ -30,22 +30,22 @@ Monkey_Data :: union {
 // NODES
 //    Nodes are only those which cannot be used as a valid general data type other as a
 //    parser output and evaluation input
-//    All the fields in any "node"s is a Monkey_Data Pointer which points to the actual
-//    Monkey_data in a pool
+//    each of the fields in any of the "node"s is a Node Pointer which points to the actual
+//    Node in 'a' pool
 // ***************************************************************************************
 
-Node_Program :: distinct [dynamic]Monkey_Data
+Node_Program :: distinct [dynamic]Node
 
 Node_Let_Statement :: struct {
 	name:  string,
-	value: ^Monkey_Data,
+	value: ^Node,
 }
 
 Node_Return_Statement :: struct {
-	ret_val: ^Monkey_Data,
+	ret_val: ^Node,
 }
 
-Node_Block_Expression :: distinct [dynamic]Monkey_Data
+Node_Block_Expression :: distinct [dynamic]Node
 
 Node_Identifier :: struct {
 	value: string,
@@ -53,24 +53,24 @@ Node_Identifier :: struct {
 
 Node_Prefix_Expression :: struct {
 	op:      string,
-	operand: ^Monkey_Data,
+	operand: ^Node,
 }
 
 Node_Infix_Expression :: struct {
 	op:    string,
-	left:  ^Monkey_Data,
-	right: ^Monkey_Data,
+	left:  ^Node,
+	right: ^Node,
 }
 
 Node_If_Expression :: struct {
-	condition:   ^Monkey_Data,
+	condition:   ^Node,
 	consequence: Node_Block_Expression,
 	alternative: Node_Block_Expression,
 }
 
-Node_Array_Literal :: distinct [dynamic]Monkey_Data
+Node_Array_Literal :: distinct [dynamic]Node
 
-Node_Hash_Table_Literal :: distinct map[string]Monkey_Data
+Node_Hash_Table_Literal :: distinct map[string]Node
 
 Node_Function_Literal :: struct {
 	parameters: [dynamic]Node_Identifier,
@@ -78,19 +78,19 @@ Node_Function_Literal :: struct {
 }
 
 Node_Call_Expression :: struct {
-	function:  ^Monkey_Data,
-	arguments: [dynamic]Monkey_Data,
+	function:  ^Node,
+	arguments: [dynamic]Node,
 }
 
 Node_Index_Expression :: struct {
-	operand: ^Monkey_Data,
-	index:   ^Monkey_Data,
+	operand: ^Node,
+	index:   ^Node,
 }
 
 _ast_get_type_val :: reflect.union_variant_typeid
 
 @(private = "file")
-_ast_get_type_ptr :: proc(ast: ^Monkey_Data) -> typeid {
+_ast_get_type_ptr :: proc(ast: ^Node) -> typeid {
 	return reflect.union_variant_typeid(ast^)
 }
 
@@ -99,7 +99,19 @@ ast_get_type :: proc {
 	_ast_get_type_ptr,
 }
 
-ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
+ast_to_string :: proc {
+	_ast_to_string_main,
+	_ast_to_string_alter,
+}
+
+@(private = "file")
+_ast_to_string_alter :: proc(#by_ptr ast: Node, sb: ^s.Builder) {
+	ast := ast
+	_ast_to_string_main(&ast, sb)
+}
+
+@(private = "file")
+_ast_to_string_main :: proc(ast: ^Node, sb: ^s.Builder) {
 	#partial switch data in ast {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
@@ -145,13 +157,11 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		fmt.sbprint(sb, "if ")
 		ast_to_string(data.condition, sb)
 		fmt.sbprint(sb, " ")
-		consequence_data := Monkey_Data(data.consequence)
-		ast_to_string(&consequence_data, sb)
+		ast_to_string(data.consequence, sb)
 
 		if data.alternative != nil {
 			fmt.sbprint(sb, " else ")
-			alternative_data := Monkey_Data(data.alternative)
-			ast_to_string(&alternative_data, sb)
+			ast_to_string(data.alternative, sb)
 		}
 
 	case Node_Block_Expression:
@@ -171,8 +181,7 @@ ast_to_string :: proc(ast: ^Monkey_Data, sb: ^s.Builder) {
 		}
 		fmt.sbprint(sb, ") ")
 
-		body_data := Monkey_Data(data.body)
-		ast_to_string(&body_data, sb)
+		ast_to_string(data.body, sb)
 
 	case Node_Call_Expression:
 		ast_to_string(data.function, sb)
