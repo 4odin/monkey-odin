@@ -30,7 +30,7 @@ is_digit :: proc(ch: u8) -> bool {
 }
 
 @(private = "file")
-create_single_letter_tok :: proc(l: ^Lexer, type: Token_Type) -> Token {
+token_from_current_char :: proc(l: ^Lexer, type: Token_Type) -> Token {
 	return token(type, l.input, l.pos, 1)
 }
 
@@ -96,50 +96,50 @@ next_token :: proc(l: ^Lexer) -> Token {
 			start := l.pos
 			read_char(l)
 			tok = token(.Equal, l.input, start, 2)
-		} else do tok = create_single_letter_tok(l, .Assign)
+		} else do tok = token_from_current_char(l, .Assign)
 
 	case '+':
-		tok = create_single_letter_tok(l, .Plus)
+		tok = token_from_current_char(l, .Plus)
 
 	case '-':
-		tok = create_single_letter_tok(l, .Minus)
+		tok = token_from_current_char(l, .Minus)
 
 	case '!':
 		if peek_char(l) == '=' {
 			start := l.pos
 			read_char(l)
 			tok = token(.Not_Equal, l.input, start, 2)
-		} else do tok = create_single_letter_tok(l, .Bang)
+		} else do tok = token_from_current_char(l, .Bang)
 
 	case '/':
-		tok = create_single_letter_tok(l, .Slash)
+		tok = token_from_current_char(l, .Slash)
 
 	case '*':
-		tok = create_single_letter_tok(l, .Asterisk)
+		tok = token_from_current_char(l, .Asterisk)
 
 	case '<':
-		tok = create_single_letter_tok(l, .Less_Than)
+		tok = token_from_current_char(l, .Less_Than)
 
 	case '>':
-		tok = create_single_letter_tok(l, .Greater_Than)
+		tok = token_from_current_char(l, .Greater_Than)
 
 	case ';':
-		tok = create_single_letter_tok(l, .Semicolon)
+		tok = token_from_current_char(l, .Semicolon)
 
 	case ',':
-		tok = create_single_letter_tok(l, .Comma)
+		tok = token_from_current_char(l, .Comma)
 
 	case '(':
-		tok = create_single_letter_tok(l, .Left_Paren)
+		tok = token_from_current_char(l, .Left_Paren)
 
 	case ')':
-		tok = create_single_letter_tok(l, .Right_Paren)
+		tok = token_from_current_char(l, .Right_Paren)
 
 	case '{':
-		tok = create_single_letter_tok(l, .Left_Brace)
+		tok = token_from_current_char(l, .Left_Brace)
 
 	case '}':
-		tok = create_single_letter_tok(l, .Right_Brace)
+		tok = token_from_current_char(l, .Right_Brace)
 
 	case 0:
 		tok.input = {}
@@ -153,7 +153,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 			return tok
 		} else if is_digit(l.ch) do return create_number(l)
 
-		tok = create_single_letter_tok(l, .Illigal)
+		tok = token_from_current_char(l, .Illigal)
 	}
 
 	read_char(l)
