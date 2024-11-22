@@ -1,4 +1,4 @@
-package monkey_parser
+package monkey_ast
 
 import "core:fmt"
 import "core:reflect"

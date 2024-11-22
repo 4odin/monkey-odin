@@ -5,12 +5,14 @@ import "core:mem"
 import "core:os"
 import st "core:strings"
 
+import ma "./ast"
+import me "./evaluator"
 import mp "./parser"
 import u "./utils"
 
 _ :: mem
 
-PROMPT :: "> "
+PROMPT :: ">>"
 QUIT_CMD :: ":q"
 
 main :: proc() {
@@ -47,14 +49,17 @@ main :: proc() {
 	fmt.printfln("Enter '%s' to exit", QUIT_CMD)
 
 	username := u.get_username(context.temp_allocator)
+	sb := st.builder_make(context.temp_allocator)
+
 	defer free_all(context.temp_allocator)
 
 	parser->config()
 	defer parser->free()
 
+	evaluator := me.evaluator()
+
 	for {
-		fmt.print(username)
-		fmt.print(PROMPT)
+		fmt.printf("%s %s", username, PROMPT)
 
 		buf: [1024]byte
 		_, err := os.read(os.stdin, buf[:])
@@ -74,10 +79,17 @@ main :: proc() {
 			continue
 		}
 
-		sb := st.builder_make(context.temp_allocator)
-		mp.ast_to_string(program, &sb)
+		st.builder_reset(&sb)
+		ma.ast_to_string(program, &sb)
+		fmt.printfln("Ast: %v", st.to_string(sb))
 
-		fmt.println(st.to_string(sb))
+		evaluated := evaluator->eval(program)
+		if evaluated != nil {
+			st.builder_reset(&sb)
+			me.obj_inspect(evaluated, &sb)
+
+			fmt.printfln("Result: %v", st.to_string(sb))
+		}
 	}
 }
 
