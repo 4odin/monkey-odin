@@ -22,23 +22,61 @@ main :: proc() {
 		mem.tracking_allocator_init(&track, context.allocator)
 		context.allocator = mem.tracking_allocator(&track)
 
+		temp_track: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&temp_track, context.temp_allocator)
+		context.temp_allocator = mem.tracking_allocator(&temp_track)
+
+		// Last thing: report on the main allocator
 		defer {
 			if len(track.allocation_map) > 0 {
-				fmt.eprintfln("=== %v allocations not freed: ===", len(track.allocation_map))
+				fmt.eprintfln(
+					"=== Allocator: %v allocations not freed: ===",
+					len(track.allocation_map),
+				)
 				for _, entry in track.allocation_map {
 					fmt.eprintfln("- %v bytes @ %v", entry.size, entry.location)
 				}
 			}
 
 			if len(track.bad_free_array) > 0 {
-				fmt.eprintfln("=== %v incorrect frees: ===", len(track.bad_free_array))
+				fmt.eprintfln("=== Allocator: %v incorrect frees: ===", len(track.bad_free_array))
 				for entry in track.bad_free_array {
 					fmt.eprintfln("- %p @ %v", entry.memory, entry.location)
 				}
 			}
 
 			mem.tracking_allocator_destroy(&track)
+		}
 
+		// before the last thing, report on temp allocator
+		defer {
+			if len(temp_track.allocation_map) > 0 {
+				fmt.eprintfln(
+					"=== Temp Allocator: %v allocations not freed: ===",
+					len(temp_track.allocation_map),
+				)
+				for _, entry in temp_track.allocation_map {
+					fmt.eprintfln("- %v bytes @ %v", entry.size, entry.location)
+				}
+			}
+
+			if len(temp_track.bad_free_array) > 0 {
+				fmt.eprintfln(
+					"=== Temp Allocator: %v incorrect frees: ===",
+					len(temp_track.bad_free_array),
+				)
+				for entry in temp_track.bad_free_array {
+					fmt.eprintfln("- %p @ %v", entry.memory, entry.location)
+				}
+			}
+
+			mem.tracking_allocator_destroy(&temp_track)
+		}
+	}
+
+	when ODIN_DEBUG {
+		// before context allocators, report on parser and other virtual memory based instances
+		defer {
 			if parser->pool_total_used() != 0 {
 				fmt.eprintfln("parser has unfreed memory: %v", parser->pool_total_used())
 			}
