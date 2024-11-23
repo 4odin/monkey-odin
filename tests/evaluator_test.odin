@@ -163,3 +163,45 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 		}
 	}
 }
+
+@(test)
+test_if_else_expression :: proc(t: ^testing.T) {
+	NULL :: me.Null{}
+
+	tests := []struct {
+		input:    string,
+		expected: me.Object,
+	} {
+		{"if true { 10 }", 10},
+		{"if false { 10 }", NULL},
+		{"if 1 { 10 }", 10},
+		{"if 1 < 2 { 10 }", 10},
+		{"if 1 > 2 { 10 }", NULL},
+		{"if 1 > 2 { 10 } else { 20 }", 20},
+		{"if 1 < 2 { 10 } else { 20 }", 10},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		#partial switch expected in test_case.expected {
+		case int:
+			if !integer_object_is_valid(evaluated, expected) {
+				log.errorf("test[%d] has failed", i)
+				testing.fail(t)
+			}
+
+		case me.Null:
+			if me.obj_type(evaluated) != me.Null {
+				log.errorf("object is not Null, got='%v'", me.obj_type(evaluated))
+				log.errorf("test[%d] has failed", i)
+				testing.fail(t)
+			}
+		}
+	}
+}

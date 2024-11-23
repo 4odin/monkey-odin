@@ -15,7 +15,18 @@ evaluator :: proc() -> Evaluator {
 }
 
 @(private = "file")
-eval_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> Object {
+eval_program_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> Object {
+	result: Object
+
+	for stmt in program {
+		result = eval(e, stmt)
+	}
+
+	return result
+}
+
+@(private = "file")
+eval_block_statements :: proc(e: ^Evaluator, program: ma.Node_Block_Expression) -> Object {
 	result: Object
 
 	for stmt in program {
@@ -106,10 +117,36 @@ eval_infix_expression :: proc(e: ^Evaluator, op: string, left: Object, right: Ob
 }
 
 @(private = "file")
+is_truthy :: proc(obj: Object) -> bool {
+	#partial switch data in obj {
+	case Null:
+		return false
+
+	case bool:
+		return data
+	}
+
+	return true
+}
+
+@(private = "file")
+eval_if_expression :: proc(e: ^Evaluator, node: ma.Node_If_Expression) -> Object {
+	condition := eval(e, node.condition^)
+
+	if is_truthy(condition) {
+		return eval(e, node.consequence)
+	} else if node.alternative != nil {
+		return eval(e, node.alternative)
+	}
+
+	return NULL
+}
+
+@(private = "file")
 eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
 	#partial switch data in node {
 	case ma.Node_Program:
-		return eval_statements(e, data)
+		return eval_program_statements(e, data)
 
 	// expressions
 	case ma.Node_Prefix_Expression:
@@ -120,6 +157,12 @@ eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
 		left := eval(e, data.left^)
 		right := eval(e, data.right^)
 		return eval_infix_expression(e, data.op, left, right)
+
+	case ma.Node_Block_Expression:
+		return eval_block_statements(e, data)
+
+	case ma.Node_If_Expression:
+		return eval_if_expression(e, data)
 
 	// literals
 	case int:
