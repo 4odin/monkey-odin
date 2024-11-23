@@ -1,36 +1,27 @@
 package monkey_evaluator
 
-import "core:mem"
-
 Environment :: struct {
-	store:     map[string]Object_Base,
-
-	// memory
-	allocator: mem.Allocator,
+	store: map[string]Object_Base,
 
 	// methods
-	config:    proc(env: ^Environment, inner_allocator := context.allocator),
-	get:       proc(env: ^Environment, name: string) -> (Object_Base, bool),
-	set:       proc(env: ^Environment, name: string, value: Object_Base) -> Object_Base,
+	get:   proc(env: ^Environment, name: string) -> (Object_Base, bool),
+	set:   proc(env: ^Environment, name: string, value: Object_Base) -> Object_Base,
+	free:  proc(env: ^Environment),
 }
 
 environment :: proc() -> Environment {
-	return {config = environment_config, get = environment_get, set = environment_set}
+	return {get = environment_get, set = environment_set, free = environment_free}
 }
 
-new_environment :: proc(
-	inner_allocator := context.allocator,
-	allocator := context.allocator,
-) -> ^Environment {
+new_environment :: proc(allocator := context.allocator) -> ^Environment {
 	env := new(Environment, allocator)
-	env->config(inner_allocator)
 
 	return env
 }
 
 @(private = "file")
-environment_config :: proc(env: ^Environment, inner_allocator := context.allocator) {
-	env.store.allocator = inner_allocator
+environment_free :: proc(env: ^Environment) {
+	delete(env.store)
 }
 
 @(private = "file")

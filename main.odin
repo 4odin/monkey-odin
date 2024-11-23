@@ -91,7 +91,9 @@ main :: proc() {
 	fmt.println("Monkey language REPL")
 	fmt.printfln("Enter '%s' to exit", QUIT_CMD)
 
-	username := u.get_username(context.temp_allocator)
+	username := u.get_username()
+	defer delete(username)
+
 	sb := st.builder_make(context.temp_allocator)
 
 	defer free_all(context.temp_allocator)

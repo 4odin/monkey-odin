@@ -52,11 +52,9 @@ evaluator_config :: proc(
 	e._sb = st.builder_make(temp_allocator)
 
 	err := vmem.arena_init_growing(&e._arena, pool_reserved_block_size)
-	if err == .None {
-		e.pool = vmem.arena_allocator(&e._arena)
-		e._env = environment()
-		e._env->config(e.pool)
-	}
+	if err == .None do e.pool = vmem.arena_allocator(&e._arena)
+
+	e._env = environment()
 
 	return err
 }
@@ -69,6 +67,7 @@ evaluator_pool_total_used :: proc(e: ^Evaluator) -> uint {
 @(private = "file")
 evaluator_free :: proc(e: ^Evaluator) {
 	vmem.arena_destroy(&e._arena)
+	e._env->free()
 }
 
 @(private = "file")
@@ -275,6 +274,9 @@ eval :: proc(e: ^Evaluator, node: ma.Node) -> (Object, bool) {
 	case ma.Node_Let_Statement:
 		val, ok := eval(e, data.value^)
 		if !ok do return val, false
+
+		_, ok = e._env->get(data.name)
+		if ok do return Object_Base(new_error(e, "identifier '%s' is already declared", data.name)), false
 
 		e._env->set(st.clone(data.name, e.pool), to_object_base(val))
 		return Object_Base(NULL), true
