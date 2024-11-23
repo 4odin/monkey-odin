@@ -4,7 +4,14 @@ import "core:fmt"
 import "core:reflect"
 import st "core:strings"
 
-Null :: struct {}
+import ma "../ast"
+
+Obj_Null :: struct {}
+Obj_Function :: struct {
+	parameters: [dynamic]ma.Node_Identifier,
+	body:       ma.Node_Block_Expression,
+	env:        ^Environment,
+}
 
 Object_Base :: union {
 	int,
@@ -12,7 +19,8 @@ Object_Base :: union {
 	string,
 
 	// Objects
-	Null,
+	Obj_Null,
+	^Obj_Function,
 }
 
 Object_Return :: distinct Object_Base
@@ -44,7 +52,7 @@ _to_object_base_ptr :: proc(obj: ^Object) -> Object_Base {
 	}
 
 	// unreachable
-	return Null{}
+	return Obj_Null{}
 }
 
 obj_is_return :: proc {
@@ -96,7 +104,7 @@ _obj_inspect_ptr :: proc(obj: ^Object, sb: ^st.Builder) {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
 
-	case Null:
+	case Obj_Null:
 		fmt.sbprint(sb, "(null)")
 	}
 }

@@ -1,19 +1,27 @@
 package tests
 
+import ma "../ast"
 import me "../evaluator"
 import mp "../parser"
 
 import "core:log"
+import st "core:strings"
 import "core:testing"
 
-evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_Base, bool) {
+_ :: st
+_ :: ma
+
+evaluate_is_valid_get_evaluator :: proc(
+	input: string,
+	print_errors := true,
+) -> (
+	me.Object_Base,
+	^me.Evaluator,
+	bool,
+) {
 	p := mp.parser()
 	p->config()
 	defer p->free()
-
-	e := me.evaluator()
-	e->config()
-	defer e->free()
 
 	defer free_all(context.temp_allocator)
 
@@ -21,16 +29,35 @@ evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_
 	if len(p.errors) > 0 {
 		for err in p.errors do log.errorf("parser error: %s", err)
 
-		return nil, false
+		return nil, nil, false
 	}
+
+	e := new_clone(me.evaluator())
+	e->config()
 
 	evaluated, ok := e->eval(program)
 	if !ok {
 		if print_errors do log.errorf("evaluator error: %s", evaluated)
-		return "", false
+
+		e->free()
+		free(e)
+
+		return "", nil, false
 	}
 
-	return evaluated, true
+	return evaluated, e, true
+}
+
+evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_Base, bool) {
+
+	evaluated, e, ok := evaluate_is_valid_get_evaluator(input, print_errors)
+
+	defer if ok {
+		e->free()
+		free(e)
+	}
+
+	return evaluated, ok
 }
 
 integer_object_is_valid :: proc(obj: me.Object_Base, expected: int) -> bool {
@@ -174,7 +201,7 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 
 @(test)
 test_eval_if_else_expression :: proc(t: ^testing.T) {
-	NULL :: me.Null{}
+	NULL :: me.Obj_Null{}
 
 	tests := []struct {
 		input:    string,
@@ -204,9 +231,9 @@ test_eval_if_else_expression :: proc(t: ^testing.T) {
 				testing.fail(t)
 			}
 
-		case me.Null:
-			if me.obj_type(evaluated) != me.Null {
-				log.errorf("object is not Null, got='%v'", me.obj_type(evaluated))
+		case me.Obj_Null:
+			if me.obj_type(evaluated) != me.Obj_Null {
+				log.errorf("object is not Obj_Null, got='%v'", me.obj_type(evaluated))
 				log.errorf("test[%d] has failed", i)
 				testing.fail(t)
 			}
@@ -253,36 +280,6 @@ test_eval_return_statement :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_eval_errors :: proc(t: ^testing.T) {
-	inputs := [?]string {
-		"5 + true;",
-		"5 + true; 5;",
-		"-true",
-		"true+false;",
-		"5; true + false; 5",
-		"if 10 > 1 {true + false;}",
-		`if 10 > 1 {
-                if 10 > 1 {
-                    return true + false;
-                }
-
-                return 1;
-            }`,
-		"foobar", // does not exist
-	}
-
-
-	for input, i in inputs {
-		_, ok := evalulation_is_valid(input, false)
-		if ok {
-			log.errorf("test[%d] has failed, should not be ok", i)
-			testing.fail(t)
-			continue
-		}
-	}
-}
-
-@(test)
 test_eval_let_statements :: proc(t: ^testing.T) {
 	tests := [?]struct {
 		input:    string,
@@ -305,6 +302,92 @@ test_eval_let_statements :: proc(t: ^testing.T) {
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
 			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_eval_function_object :: proc(t: ^testing.T) {
+	input := "fn(x) { x + 2 };"
+
+	evaluated, e, ok := evaluate_is_valid_get_evaluator(input)
+	defer if ok {
+		e->free()
+		free(e)
+	}
+
+	if !ok {
+		testing.fail(t)
+		return
+	}
+
+	fn, is_fn := evaluated.(^me.Obj_Function)
+	if !is_fn {
+		log.errorf("object is not function. got='%v'", me.obj_type(evaluated))
+		testing.fail(t)
+		return
+	}
+
+	if len(fn.parameters) != 1 {
+		log.errorf(
+			"function has wrong number of parameters, got='%d', '%v'",
+			len(fn.parameters),
+			fn.parameters,
+		)
+		testing.fail(t)
+		return
+	}
+
+	if fn.parameters[0].value != "x" {
+		log.errorf("function's parameter is not 'x', got='%s'", fn.parameters[0])
+		testing.fail(t)
+		return
+	}
+
+	expected_body := "{ (x+2) }"
+
+	sb := st.builder_make(context.temp_allocator)
+	defer free_all(context.temp_allocator)
+
+	ma.ast_to_string(fn.body, &sb)
+
+	if st.to_string(sb) != expected_body {
+		log.errorf(
+			"ast_to_string ris not valid, expected='%s', got='%s'",
+			expected_body,
+			st.to_string(sb),
+		)
+		testing.fail(t)
+	}
+}
+
+@(test)
+test_eval_errors :: proc(t: ^testing.T) {
+	inputs := [?]string {
+		"5 + true;",
+		"5 + true; 5;",
+		"-true",
+		"true+false;",
+		"5; true + false; 5",
+		"if 10 > 1 {true + false;}",
+		`if 10 > 1 {
+                if 10 > 1 {
+                    return true + false;
+                }
+
+                return 1;
+            }`,
+		"foobar", // does not exist
+		"let a = 12; let a = true;", // already exists
+	}
+
+
+	for input, i in inputs {
+		_, ok := evalulation_is_valid(input, false)
+		if ok {
+			log.errorf("test[%d] has failed, should not be ok", i)
+			testing.fail(t)
+			continue
 		}
 	}
 }

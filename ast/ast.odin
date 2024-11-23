@@ -1,6 +1,7 @@
 package monkey_ast
 
 import "core:fmt"
+import "core:mem"
 import "core:reflect"
 import st "core:strings"
 
@@ -193,4 +194,73 @@ _ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 		}
 		fmt.sbprint(sb, ")")
 	}
+}
+
+ast_copy_arr :: proc(
+	ast: ^Node_Block_Expression,
+	dst: ^Node_Block_Expression,
+	allocator: mem.Allocator,
+) {
+	for &stmt in ast {
+		append(dst, ast_copy(&stmt, allocator))
+	}
+}
+
+ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
+	#partial switch &data in ast {
+	case int, string, bool:
+		return data
+
+	case Node_Infix_Expression:
+		return Node_Infix_Expression {
+			op = st.clone(data.op, allocator),
+			left = new_clone(ast_copy(data.left, allocator), allocator),
+			right = new_clone(ast_copy(data.right, allocator), allocator),
+		}
+
+	case Node_Identifier:
+		return Node_Identifier{value = st.clone(data.value, allocator)}
+
+	case Node_Let_Statement:
+		return Node_Let_Statement {
+			name = st.clone(data.name, allocator),
+			value = new_clone(ast_copy(data.value, allocator), allocator),
+		}
+
+	case Node_Return_Statement:
+		return Node_Return_Statement {
+			ret_val = new_clone(ast_copy(data.ret_val, allocator), allocator),
+		}
+
+	case Node_Prefix_Expression:
+		return Node_Prefix_Expression {
+			op = st.clone(data.op, allocator),
+			operand = new_clone(ast_copy(data.operand, allocator), allocator),
+		}
+
+	case Node_If_Expression:
+		consequence := make(Node_Block_Expression, 0, cap(data.consequence))
+		ast_copy_arr(&data.consequence, &consequence, allocator)
+
+		alternative: Node_Block_Expression
+		if data.alternative != nil {
+			alternative = make(Node_Block_Expression, 0, cap(data.alternative))
+			ast_copy_arr(&data.alternative, &alternative, allocator)
+		}
+
+		return Node_If_Expression {
+			condition = new_clone(ast_copy(data.condition, allocator), allocator),
+			consequence = consequence,
+			alternative = alternative,
+		}
+
+	case Node_Function_Literal:
+		return Node_Function_Literal{}
+
+	case Node_Call_Expression:
+		return Node_Call_Expression{}
+
+	}
+
+	panic("Node is not recognized")
 }
