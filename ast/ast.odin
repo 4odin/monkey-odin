@@ -259,7 +259,6 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 
 	case Node_Call_Expression:
 		return Node_Call_Expression{}
-
 	}
 
 	panic("Node is not recognized")
