@@ -100,18 +100,18 @@ _ast_type_ptr :: proc(ast: ^Node) -> typeid {
 }
 
 ast_to_string :: proc {
-	_ast_to_string_main,
-	_ast_to_string_alter,
+	_ast_to_string_ptr,
+	_ast_to_string_val,
 }
 
 @(private = "file")
-_ast_to_string_alter :: proc(ast: Node, sb: ^st.Builder) {
+_ast_to_string_val :: proc(ast: Node, sb: ^st.Builder) {
 	ast := ast
-	_ast_to_string_main(&ast, sb)
+	_ast_to_string_ptr(&ast, sb)
 }
 
 @(private = "file")
-_ast_to_string_main :: proc(ast: ^Node, sb: ^st.Builder) {
+_ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 	#partial switch data in ast {
 	case bool, int, string:
 		fmt.sbprint(sb, data)

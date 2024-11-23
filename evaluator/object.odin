@@ -28,18 +28,18 @@ _obj_type_ptr :: proc(obj: ^Object) -> typeid {
 }
 
 obj_inspect :: proc {
-	_obj_inspect_main,
-	_obj_inspect_alter,
+	_obj_inspect_ptr,
+	_obj_inspect_val,
 }
 
 @(private = "file")
-_obj_inspect_alter :: proc(obj: Object, sb: ^st.Builder) {
+_obj_inspect_val :: proc(obj: Object, sb: ^st.Builder) {
 	obj := obj
-	_obj_inspect_main(&obj, sb)
+	_obj_inspect_ptr(&obj, sb)
 }
 
 @(private = "file")
-_obj_inspect_main :: proc(obj: ^Object, sb: ^st.Builder) {
+_obj_inspect_ptr :: proc(obj: ^Object, sb: ^st.Builder) {
 	#partial switch data in obj {
 	case bool, int, string:
 		fmt.sbprint(sb, data)
