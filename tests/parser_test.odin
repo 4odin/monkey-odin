@@ -506,7 +506,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 }
 
 @(test)
-test_by_ast_to_string :: proc(t: ^testing.T) {
+test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
 	tests := []struct {
 		input:    string,
 		expected: string,

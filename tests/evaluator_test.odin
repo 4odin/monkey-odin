@@ -164,7 +164,7 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_if_else_expression :: proc(t: ^testing.T) {
+test_eval_if_else_expression :: proc(t: ^testing.T) {
 	NULL :: me.Null{}
 
 	tests := []struct {
@@ -241,4 +241,9 @@ test_eval_return_statement :: proc(t: ^testing.T) {
 			testing.fail(t)
 		}
 	}
+}
+
+@(test)
+test_eval_errors :: proc(t: ^testing.T) {
+
 }

@@ -6,7 +6,7 @@ import "core:log"
 import "core:testing"
 
 @(test)
-test_next_token :: proc(t: ^testing.T) {
+test_lexer_next_token :: proc(t: ^testing.T) {
 	input := `let five = 5;
 let ten = 10;
 
