@@ -95,6 +95,7 @@ main :: proc() {
 	defer parser->free()
 
 	evaluator := me.evaluator()
+	evaluator->config()
 
 	for {
 		fmt.printf("%s %s", username, PROMPT)
@@ -121,7 +122,12 @@ main :: proc() {
 		ma.ast_to_string(program, &sb)
 		fmt.printfln("Ast: %v", st.to_string(sb))
 
-		evaluated := evaluator->eval(program)
+		evaluated, ok := evaluator->eval(program)
+		if !ok {
+			fmt.printfln("Evaluation error: %s", evaluated)
+			continue
+		}
+
 		if evaluated != nil {
 			st.builder_reset(&sb)
 			me.obj_inspect(evaluated, &sb)
