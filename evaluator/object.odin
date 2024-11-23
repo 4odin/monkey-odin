@@ -67,11 +67,14 @@ obj_type :: proc {
 	_obj_type_ptr,
 }
 
-_obj_type_val :: reflect.union_variant_typeid
+@(private = "file")
+_obj_type_val :: proc(obj: Object) -> typeid {
+	return reflect.union_variant_typeid(to_object_base(obj))
+}
 
 @(private = "file")
 _obj_type_ptr :: proc(obj: ^Object) -> typeid {
-	return reflect.union_variant_typeid(obj^)
+	return reflect.union_variant_typeid(to_object_base(obj^))
 }
 
 obj_inspect :: proc {

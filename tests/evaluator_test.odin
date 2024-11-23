@@ -4,7 +4,6 @@ import me "../evaluator"
 import mp "../parser"
 
 import "core:log"
-// import st "core:strings"
 import "core:testing"
 
 evalulation_is_valid :: proc(input: string) -> (me.Object_Base, bool) {
