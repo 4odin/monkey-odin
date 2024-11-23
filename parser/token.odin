@@ -41,8 +41,8 @@ Token_Type :: enum {
 }
 
 Token :: struct {
-	type:  Token_Type,
-	input: []u8,
+	type:       Token_Type,
+	text_slice: []u8,
 }
 
 token :: proc(type: Token_Type, input: []u8, start: int, length: int) -> Token {
@@ -51,7 +51,7 @@ token :: proc(type: Token_Type, input: []u8, start: int, length: int) -> Token {
 
 @(private)
 update_type_if_keyword :: proc(tok: ^Token) {
-	switch (transmute(string)(tok.input)) {
+	switch (string(tok.text_slice)) {
 	case "fn":
 		tok.type = .Function
 

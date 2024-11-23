@@ -182,12 +182,12 @@ next_token :: proc(p: ^Parser) {
 
 @(private = "file")
 parse_identifier :: proc(p: ^Parser) -> ma.Node {
-	return ma.Node_Identifier{transmute(string)p.cur_token.input}
+	return ma.Node_Identifier{string(p.cur_token.text_slice)}
 }
 
 @(private = "file")
 parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
-	value, ok := strconv.parse_int(transmute(string)p.cur_token.input)
+	value, ok := strconv.parse_int(string(p.cur_token.text_slice))
 	if !ok {
 		msg := st.builder_make(p.temp_allocator)
 
@@ -208,7 +208,7 @@ parse_boolean_literal :: proc(p: ^Parser) -> ma.Node {
 parse_let_statement :: proc(p: ^Parser) -> ma.Node {
 	if !expect_peek(p, .Identifier) do return nil
 
-	name := transmute(string)p.cur_token.input
+	name := string(p.cur_token.text_slice)
 
 	if !expect_peek(p, .Assign) do return nil
 
@@ -236,7 +236,7 @@ parse_return_statement :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
-	op := transmute(string)p.cur_token.input
+	op := string(p.cur_token.text_slice)
 
 	next_token(p)
 
@@ -248,7 +248,7 @@ parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
-	op := transmute(string)p.cur_token.input
+	op := string(p.cur_token.text_slice)
 
 	prec := cur_precedence(p)
 	next_token(p)
@@ -328,12 +328,12 @@ parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
 
 	next_token(p)
 
-	append(&identifiers, ma.Node_Identifier{value = transmute(string)p.cur_token.input})
+	append(&identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
 
 	for peek_token_is(p, .Comma) {
 		next_token(p)
 		next_token(p)
-		append(&identifiers, ma.Node_Identifier{value = transmute(string)p.cur_token.input})
+		append(&identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
 	}
 
 	if !expect_peek(p, .Right_Paren) do return nil

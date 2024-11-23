@@ -142,7 +142,7 @@ next_token :: proc(l: ^Lexer) -> Token {
 		tok = token_from_current_char(l, .Right_Brace)
 
 	case 0:
-		tok.input = {}
+		tok.text_slice = {}
 		tok.type = .EOF
 
 	case:

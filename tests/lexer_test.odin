@@ -153,12 +153,12 @@ if 5 < 10 {
 			continue
 		}
 
-		if transmute(string)tok.input != test_case.expected_literal {
+		if string(tok.text_slice) != test_case.expected_literal {
 			log.errorf(
 				"tests[%d] - literal wrong. expected='%s', got='%s'",
 				i,
 				test_case.expected_literal,
-				transmute(string)tok.input,
+				string(tok.text_slice),
 			)
 			testing.fail(t)
 		}
