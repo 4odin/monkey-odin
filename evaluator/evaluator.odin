@@ -60,6 +60,52 @@ eval_prefix_expression :: proc(e: ^Evaluator, op: string, operand: Object) -> Ob
 }
 
 @(private = "file")
+eval_integer_infix_expression :: proc(e: ^Evaluator, op: string, left: int, right: int) -> Object {
+	switch op {
+	case "+":
+		return left + right
+
+	case "-":
+		return left - right
+
+	case "*":
+		return left * right
+
+	case "/":
+		return left / right
+
+	case "<":
+		return left < right
+
+	case ">":
+		return left > right
+
+	case "==":
+		return left == right
+
+	case "!=":
+		return left != right
+	}
+
+	return NULL
+}
+
+@(private = "file")
+eval_infix_expression :: proc(e: ^Evaluator, op: string, left: Object, right: Object) -> Object {
+	if ma.ast_type(left) == int && ma.ast_type(right) == int do return eval_integer_infix_expression(e, op, left.(int), right.(int))
+
+	switch op {
+	case "==":
+		return left == right
+
+	case "!=":
+		return left != right
+	}
+
+	return NULL
+}
+
+@(private = "file")
 eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
 	#partial switch data in node {
 	case ma.Node_Program:
@@ -69,6 +115,11 @@ eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
 	case ma.Node_Prefix_Expression:
 		operand := eval(e, data.operand^)
 		return eval_prefix_expression(e, data.op, operand)
+
+	case ma.Node_Infix_Expression:
+		left := eval(e, data.left^)
+		right := eval(e, data.right^)
+		return eval_infix_expression(e, data.op, left, right)
 
 	// literals
 	case int:
