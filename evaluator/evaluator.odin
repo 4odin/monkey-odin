@@ -2,6 +2,7 @@ package monkey_evaluator
 
 import "core:fmt"
 import "core:mem"
+import vmem "core:mem/virtual"
 import st "core:strings"
 
 import ma "../ast"
@@ -10,25 +11,64 @@ import ma "../ast"
 NULL :: Null{}
 
 Evaluator :: struct {
-	// storage
-	temp_allocator: mem.Allocator,
+	// memory
+	_arena:          vmem.Arena,
+	pool:            mem.Allocator,
+	temp_allocator:  mem.Allocator,
 
-	//
-	_sb:            st.Builder,
+	// internal builders
+	_sb:             st.Builder,
+
+	// data storage
+	_env:            Environment,
 
 	// methods
-	eval:           proc(e: ^Evaluator, node: ma.Node_Program) -> (Object_Base, bool),
-	config:         proc(e: ^Evaluator, temp_allocator := context.temp_allocator),
+	eval:            proc(e: ^Evaluator, node: ma.Node_Program) -> (Object_Base, bool),
+	config:          proc(
+		e: ^Evaluator,
+		pool_reserved_block_size: uint = 1 * mem.Megabyte,
+		temp_allocator := context.temp_allocator,
+	) -> mem.Allocator_Error,
+	free:            proc(e: ^Evaluator),
+	pool_total_used: proc(e: ^Evaluator) -> uint,
 }
 
 evaluator :: proc() -> Evaluator {
-	return {eval = eval_program_statements, config = evaluator_config}
+	return {
+		eval = eval_program_statements,
+		config = evaluator_config,
+		free = evaluator_free,
+		pool_total_used = evaluator_pool_total_used,
+	}
 }
 
 @(private = "file")
-evaluator_config :: proc(e: ^Evaluator, temp_allocator := context.temp_allocator) {
+evaluator_config :: proc(
+	e: ^Evaluator,
+	pool_reserved_block_size: uint = 1 * mem.Megabyte,
+	temp_allocator := context.temp_allocator,
+) -> mem.Allocator_Error {
 	e.temp_allocator = temp_allocator
 	e._sb = st.builder_make(temp_allocator)
+
+	err := vmem.arena_init_growing(&e._arena, pool_reserved_block_size)
+	if err == .None {
+		e.pool = vmem.arena_allocator(&e._arena)
+		e._env = environment()
+		e._env->config(e.pool)
+	}
+
+	return err
+}
+
+@(private = "file")
+evaluator_pool_total_used :: proc(e: ^Evaluator) -> uint {
+	return e._arena.total_reserved
+}
+
+@(private = "file")
+evaluator_free :: proc(e: ^Evaluator) {
+	vmem.arena_destroy(&e._arena)
 }
 
 @(private = "file")
@@ -215,6 +255,14 @@ eval_if_expression :: proc(e: ^Evaluator, node: ma.Node_If_Expression) -> (Objec
 }
 
 @(private = "file")
+eval_identifier :: proc(e: ^Evaluator, node: ma.Node_Identifier) -> (Object_Base, bool) {
+	val, ok := e._env->get(node.value)
+	if !ok do return new_error(e, "identifier '%s' is not declared", node.value), false
+
+	return val, true
+}
+
+@(private = "file")
 eval :: proc(e: ^Evaluator, node: ma.Node) -> (Object, bool) {
 	#partial switch data in node {
 
@@ -224,7 +272,17 @@ eval :: proc(e: ^Evaluator, node: ma.Node) -> (Object, bool) {
 		if !ok do return val, false
 		return Object_Return(to_object_base(val)), true
 
+	case ma.Node_Let_Statement:
+		val, ok := eval(e, data.value^)
+		if !ok do return val, false
+
+		e._env->set(st.clone(data.name, e.pool), to_object_base(val))
+		return Object_Base(NULL), true
+
 	// expressions
+	case ma.Node_Identifier:
+		return eval_identifier(e, data)
+
 	case ma.Node_Prefix_Expression:
 		operand, ok := eval(e, data.operand^)
 		if !ok do return operand, false

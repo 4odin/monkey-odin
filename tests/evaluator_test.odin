@@ -13,6 +13,7 @@ evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_
 
 	e := me.evaluator()
 	e->config()
+	defer e->free()
 
 	defer free_all(context.temp_allocator)
 
@@ -253,7 +254,7 @@ test_eval_return_statement :: proc(t: ^testing.T) {
 
 @(test)
 test_eval_errors :: proc(t: ^testing.T) {
-	inputs := []string {
+	inputs := [?]string {
 		"5 + true;",
 		"5 + true; 5;",
 		"-true",
@@ -267,6 +268,7 @@ test_eval_errors :: proc(t: ^testing.T) {
 
                 return 1;
             }`,
+		"foobar", // does not exist
 	}
 
 
@@ -276,6 +278,33 @@ test_eval_errors :: proc(t: ^testing.T) {
 			log.errorf("test[%d] has failed, should not be ok", i)
 			testing.fail(t)
 			continue
+		}
+	}
+}
+
+@(test)
+test_eval_let_statements :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	} {
+		{"let a = 5; a;", 5},
+		{"let a = 5 * 5; a;", 25},
+		{"let a = 5; let b = a; b;", 5},
+		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
 		}
 	}
 }

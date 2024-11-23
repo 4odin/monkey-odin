@@ -16,7 +16,6 @@ PROMPT :: ">>"
 QUIT_CMD :: ":q"
 
 main :: proc() {
-	parser := mp.parser()
 	when ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
@@ -74,11 +73,17 @@ main :: proc() {
 		}
 	}
 
+	parser := mp.parser()
+	evaluator := me.evaluator()
 	when ODIN_DEBUG {
 		// before context allocators, report on parser and other virtual memory based instances
 		defer {
 			if parser->pool_total_used() != 0 {
 				fmt.eprintfln("parser has unfreed memory: %v", parser->pool_total_used())
+			}
+
+			if evaluator->pool_total_used() != 0 {
+				fmt.eprintfln("evaluator has unfreed memory: %v", evaluator->pool_total_used())
 			}
 		}
 	}
@@ -94,8 +99,8 @@ main :: proc() {
 	parser->config()
 	defer parser->free()
 
-	evaluator := me.evaluator()
 	evaluator->config()
+	defer evaluator->free()
 
 	for {
 		fmt.printf("%s %s", username, PROMPT)
@@ -112,27 +117,32 @@ main :: proc() {
 		if input[:len(QUIT_CMD)] == QUIT_CMD do return
 
 		program := parser->parse(input)
-		if len(parser.errors) > 0 {
-			print_errors(parser.errors)
-			parser->clear_errors()
-			continue
-		}
+		{
+			defer parser->free()
+			defer free_all(context.temp_allocator)
 
-		st.builder_reset(&sb)
-		ma.ast_to_string(program, &sb)
-		fmt.printfln("Ast: %v", st.to_string(sb))
+			if len(parser.errors) > 0 {
+				print_errors(parser.errors)
+				parser->clear_errors()
+				continue
+			}
 
-		evaluated, ok := evaluator->eval(program)
-		if !ok {
-			fmt.printfln("Evaluation error: %s", evaluated)
-			continue
-		}
-
-		if evaluated != nil {
 			st.builder_reset(&sb)
-			me.obj_inspect(evaluated, &sb)
+			ma.ast_to_string(program, &sb)
+			fmt.printfln("Ast: %v", st.to_string(sb))
 
-			fmt.printfln("Result: %v", st.to_string(sb))
+			evaluated, ok := evaluator->eval(program)
+			if !ok {
+				fmt.printfln("Evaluation error: %s", evaluated)
+				continue
+			}
+
+			if evaluated != nil {
+				st.builder_reset(&sb)
+				me.obj_inspect(evaluated, &sb)
+
+				fmt.printfln("Result: %v", st.to_string(sb))
+			}
 		}
 	}
 }

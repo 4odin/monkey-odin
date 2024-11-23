@@ -14,7 +14,7 @@ Parser :: struct {
 	cur_token:       Token,
 	peek_token:      Token,
 
-	// storage fields
+	// memory
 	errors:          [dynamic]string,
 	_arena:          vmem.Arena,
 	pool:            mem.Allocator,
@@ -152,7 +152,7 @@ parser_config :: proc(
 	p.temp_allocator = temp_allocator
 
 	err := vmem.arena_init_growing(&p._arena, pool_reserved_block_size)
-	p.pool = vmem.arena_allocator(&p._arena)
+	if err == .None do p.pool = vmem.arena_allocator(&p._arena)
 
 	p.errors.allocator = context.temp_allocator
 
