@@ -7,7 +7,7 @@ import "core:log"
 // import st "core:strings"
 import "core:testing"
 
-evalulation_is_valid :: proc(input: string) -> (me.Object, bool) {
+evalulation_is_valid :: proc(input: string) -> (me.Object_Base, bool) {
 	e := me.evaluator()
 	p := mp.parser()
 	p->config()
@@ -25,7 +25,7 @@ evalulation_is_valid :: proc(input: string) -> (me.Object, bool) {
 	return e->eval(program), true
 }
 
-integer_object_is_valid :: proc(obj: me.Object, expected: int) -> bool {
+integer_object_is_valid :: proc(obj: me.Object_Base, expected: int) -> bool {
 	result, ok := obj.(int)
 	if !ok {
 		log.errorf("object is not integer, got='%v'", me.obj_type(obj))
@@ -40,7 +40,7 @@ integer_object_is_valid :: proc(obj: me.Object, expected: int) -> bool {
 	return true
 }
 
-boolean_object_is_valid :: proc(obj: me.Object, expected: bool) -> bool {
+boolean_object_is_valid :: proc(obj: me.Object_Base, expected: bool) -> bool {
 	result, ok := obj.(bool)
 	if !ok {
 		log.errorf("object is not boolean, got='%v'", me.obj_type(obj))
@@ -170,7 +170,7 @@ test_if_else_expression :: proc(t: ^testing.T) {
 
 	tests := []struct {
 		input:    string,
-		expected: me.Object,
+		expected: me.Object_Base,
 	} {
 		{"if true { 10 }", 10},
 		{"if false { 10 }", NULL},
@@ -202,6 +202,44 @@ test_if_else_expression :: proc(t: ^testing.T) {
 				log.errorf("test[%d] has failed", i)
 				testing.fail(t)
 			}
+		}
+	}
+}
+
+@(test)
+test_eval_return_statement :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	} {
+		{"return 10;", 10},
+		{"return 10; 9;", 10},
+		{"return 2 * 5; 9;", 10},
+		{"9; return 2 * 5; 9;", 10},
+		{
+			`
+    if 10 > 1 {
+        if 10 > 1 {
+            return 10;
+        }
+
+        return 1;
+    }`,
+			10,
+		},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
 		}
 	}
 }
