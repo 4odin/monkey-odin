@@ -337,7 +337,7 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 
 		fn.body = make(ma.Node_Block_Expression, 0, cap(data.body), e.pool)
 
-		ma.ast_copy_arr(&data.body, &fn.body, e.pool)
+		ma.ast_copy_multiple(&data.body, &fn.body, e.pool)
 
 		fn.env = current_env
 

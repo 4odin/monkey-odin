@@ -196,7 +196,19 @@ _ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 	}
 }
 
-ast_copy_arr :: proc(
+@(private = "file")
+ast_copy_idents :: proc(
+	ast: ^[dynamic]Node_Identifier,
+	dst: ^[dynamic]Node_Identifier,
+	allocator: mem.Allocator,
+) {
+	for stmt in ast {
+		append(dst, Node_Identifier{value = st.clone(stmt.value, allocator)})
+	}
+}
+
+@(private = "file")
+ast_copy_block :: proc(
 	ast: ^Node_Block_Expression,
 	dst: ^Node_Block_Expression,
 	allocator: mem.Allocator,
@@ -204,6 +216,19 @@ ast_copy_arr :: proc(
 	for &stmt in ast {
 		append(dst, ast_copy(&stmt, allocator))
 	}
+}
+
+@(private = "file")
+ast_copy_nodes :: proc(ast: ^[dynamic]Node, dst: ^[dynamic]Node, allocator: mem.Allocator) {
+	for &stmt in ast {
+		append(dst, ast_copy(&stmt, allocator))
+	}
+}
+
+ast_copy_multiple :: proc {
+	ast_copy_idents,
+	ast_copy_block,
+	ast_copy_nodes,
 }
 
 ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
@@ -240,12 +265,12 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 
 	case Node_If_Expression:
 		consequence := make(Node_Block_Expression, 0, cap(data.consequence))
-		ast_copy_arr(&data.consequence, &consequence, allocator)
+		ast_copy_multiple(&data.consequence, &consequence, allocator)
 
 		alternative: Node_Block_Expression
 		if data.alternative != nil {
 			alternative = make(Node_Block_Expression, 0, cap(data.alternative))
-			ast_copy_arr(&data.alternative, &alternative, allocator)
+			ast_copy_multiple(&data.alternative, &alternative, allocator)
 		}
 
 		return Node_If_Expression {
@@ -255,10 +280,22 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 		}
 
 	case Node_Function_Literal:
-		return Node_Function_Literal{}
+		parameters := make([dynamic]Node_Identifier, 0, cap(data.parameters))
+		ast_copy_multiple(&data.parameters, &parameters, allocator)
+
+		body := make(Node_Block_Expression, 0, cap(data.body))
+		ast_copy_multiple(&data.body, &body, allocator)
+
+		return Node_Function_Literal{parameters = parameters, body = body}
 
 	case Node_Call_Expression:
-		return Node_Call_Expression{}
+		arguments := make([dynamic]Node, 0, cap(data.arguments))
+		ast_copy_multiple(&data.arguments, &arguments, allocator)
+
+		return Node_Call_Expression {
+			function = new_clone(ast_copy(data.function, allocator), allocator),
+			arguments = arguments,
+		}
 	}
 
 	panic("Node is not recognized")
