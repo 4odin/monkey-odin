@@ -6,13 +6,15 @@ import mp "../parser"
 import "core:log"
 import "core:testing"
 
-evalulation_is_valid :: proc(input: string) -> (me.Object_Base, bool) {
-	e := me.evaluator()
+evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_Base, bool) {
 	p := mp.parser()
 	p->config()
+	defer p->free()
+
+	e := me.evaluator()
+	e->config()
 
 	defer free_all(context.temp_allocator)
-	defer p->free()
 
 	program := p->parse(input)
 	if len(p.errors) > 0 {
@@ -21,7 +23,13 @@ evalulation_is_valid :: proc(input: string) -> (me.Object_Base, bool) {
 		return nil, false
 	}
 
-	return e->eval(program), true
+	evaluated, ok := e->eval(program)
+	if !ok {
+		if print_errors do log.errorf("evaluator error: %s", evaluated)
+		return "", false
+	}
+
+	return evaluated, true
 }
 
 integer_object_is_valid :: proc(obj: me.Object_Base, expected: int) -> bool {
@@ -245,5 +253,29 @@ test_eval_return_statement :: proc(t: ^testing.T) {
 
 @(test)
 test_eval_errors :: proc(t: ^testing.T) {
+	inputs := []string {
+		"5 + true;",
+		"5 + true; 5;",
+		"-true",
+		"true+false;",
+		"5; true + false; 5",
+		"if 10 > 1 {true + false;}",
+		`if 10 > 1 {
+                if 10 > 1 {
+                    return true + false;
+                }
 
+                return 1;
+            }`,
+	}
+
+
+	for input, i in inputs {
+		_, ok := evalulation_is_valid(input, false)
+		if ok {
+			log.errorf("test[%d] has failed, should not be ok", i)
+			testing.fail(t)
+			continue
+		}
+	}
 }

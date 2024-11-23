@@ -1,43 +1,74 @@
 package monkey_evaluator
 
+import "core:fmt"
+import "core:mem"
+import st "core:strings"
+
 import ma "../ast"
 
 @(private = "file")
 NULL :: Null{}
 
 Evaluator :: struct {
+	// storage
+	temp_allocator: mem.Allocator,
+
+	//
+	_sb:            st.Builder,
+
 	// methods
-	eval: proc(e: ^Evaluator, node: ma.Node_Program) -> Object_Base,
+	eval:           proc(e: ^Evaluator, node: ma.Node_Program) -> (Object_Base, bool),
+	config:         proc(e: ^Evaluator, temp_allocator := context.temp_allocator),
 }
 
 evaluator :: proc() -> Evaluator {
-	return {eval = eval_program_statements}
+	return {eval = eval_program_statements, config = evaluator_config}
 }
 
 @(private = "file")
-eval_program_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> Object_Base {
-	result: Object
-
-	for stmt in program {
-		result = eval(e, stmt)
-
-		if ret_val, ok := result.(Object_Return); ok do return to_object_base(ret_val)
-	}
-
-	return to_object_base(result)
+evaluator_config :: proc(e: ^Evaluator, temp_allocator := context.temp_allocator) {
+	e.temp_allocator = temp_allocator
+	e._sb = st.builder_make(temp_allocator)
 }
 
 @(private = "file")
-eval_block_statements :: proc(e: ^Evaluator, program: ma.Node_Block_Expression) -> Object {
+new_error :: proc(e: ^Evaluator, str: string, args: ..any) -> string {
+	st.builder_reset(&e._sb)
+	fmt.sbprintf(&e._sb, str, ..args)
+
+	err := st.to_string(e._sb)
+
+	return st.clone(err, e.temp_allocator)
+}
+
+@(private = "file")
+eval_program_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> (Object_Base, bool) {
 	result: Object
+	ok: bool
 
 	for stmt in program {
-		result = eval(e, stmt)
+		result, ok = eval(e, stmt)
+		if !ok do return result.(Object_Base), false
 
-		if obj_is_return(result) do return result
+		if ret_val, ok_type := result.(Object_Return); ok_type do return to_object_base(ret_val), true
 	}
 
-	return result
+	return to_object_base(result), true
+}
+
+@(private = "file")
+eval_block_statements :: proc(e: ^Evaluator, program: ma.Node_Block_Expression) -> (Object, bool) {
+	result: Object
+	ok: bool
+
+	for stmt in program {
+		result, ok = eval(e, stmt)
+		if !ok do return result, false
+
+		if obj_is_return(result) do return result, true
+	}
+
+	return result, true
 }
 
 @(private = "file")
@@ -54,24 +85,37 @@ eval_bang_operator_expression :: proc(e: ^Evaluator, operand: Object_Base) -> Ob
 }
 
 @(private = "file")
-eval_minus_operator_expression :: proc(e: ^Evaluator, operand: Object_Base) -> Object_Base {
+eval_minus_operator_expression :: proc(
+	e: ^Evaluator,
+	operand: Object_Base,
+) -> (
+	Object_Base,
+	bool,
+) {
 	value, ok := operand.(int)
-	if !ok do return NULL
+	if !ok do return new_error(e, "unknown operator: '-' on type '%v'", obj_type(operand)), false
 
-	return -value
+	return -value, true
 }
 
 @(private = "file")
-eval_prefix_expression :: proc(e: ^Evaluator, op: string, operand: Object_Base) -> Object_Base {
+eval_prefix_expression :: proc(
+	e: ^Evaluator,
+	op: string,
+	operand: Object_Base,
+) -> (
+	Object_Base,
+	bool,
+) {
 	switch op {
 	case "!":
-		return eval_bang_operator_expression(e, operand)
+		return eval_bang_operator_expression(e, operand), true
 
 	case "-":
 		return eval_minus_operator_expression(e, operand)
 	}
 
-	return NULL
+	return new_error(e, "unknown operator: '%s' for type '%v'", op, obj_type(operand)), false
 }
 
 @(private = "file")
@@ -80,34 +124,37 @@ eval_integer_infix_expression :: proc(
 	op: string,
 	left: int,
 	right: int,
-) -> Object_Base {
+) -> (
+	Object_Base,
+	bool,
+) {
 	switch op {
 	case "+":
-		return left + right
+		return left + right, true
 
 	case "-":
-		return left - right
+		return left - right, true
 
 	case "*":
-		return left * right
+		return left * right, true
 
 	case "/":
-		return left / right
+		return left / right, true
 
 	case "<":
-		return left < right
+		return left < right, true
 
 	case ">":
-		return left > right
+		return left > right, true
 
 	case "==":
-		return left == right
+		return left == right, true
 
 	case "!=":
-		return left != right
+		return left != right, true
 	}
 
-	return NULL
+	return new_error(e, "unknown integer infix operator '%s'", op), false
 }
 
 @(private = "file")
@@ -116,23 +163,33 @@ eval_infix_expression :: proc(
 	op: string,
 	left: Object_Base,
 	right: Object_Base,
-) -> Object_Base {
+) -> (
+	Object_Base,
+	bool,
+) {
 	if ma.ast_type(left) == int && ma.ast_type(right) == int do return eval_integer_infix_expression(e, op, left.(int), right.(int))
 
 	switch op {
 	case "==":
-		return left == right
+		return left == right, true
 
 	case "!=":
-		return left != right
+		return left != right, true
 	}
 
-	return NULL
+	return new_error(
+			e,
+			"unknown operator '%s' for 'types '%v' and '%v'",
+			op,
+			obj_type(left),
+			obj_type(right),
+		),
+		false
 }
 
 @(private = "file")
-is_truthy :: proc(obj: Object_Base) -> bool {
-	#partial switch data in obj {
+is_truthy :: proc(obj: Object) -> bool {
+	#partial switch data in to_object_base(obj) {
 	case Null:
 		return false
 
@@ -144,8 +201,9 @@ is_truthy :: proc(obj: Object_Base) -> bool {
 }
 
 @(private = "file")
-eval_if_expression :: proc(e: ^Evaluator, node: ma.Node_If_Expression) -> Object {
-	condition := to_object_base(eval(e, node.condition^))
+eval_if_expression :: proc(e: ^Evaluator, node: ma.Node_If_Expression) -> (Object, bool) {
+	condition, ok := eval(e, node.condition^)
+	if !ok do return condition, false
 
 	if is_truthy(condition) {
 		return eval(e, node.consequence)
@@ -153,26 +211,30 @@ eval_if_expression :: proc(e: ^Evaluator, node: ma.Node_If_Expression) -> Object
 		return eval(e, node.alternative)
 	}
 
-	return Object_Base(NULL)
+	return Object_Base(NULL), true
 }
 
 @(private = "file")
-eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
+eval :: proc(e: ^Evaluator, node: ma.Node) -> (Object, bool) {
 	#partial switch data in node {
 
 	// statements
 	case ma.Node_Return_Statement:
-		val := eval(e, data.ret_val^)
-		return Object_Return(to_object_base(val))
+		val, ok := eval(e, data.ret_val^)
+		if !ok do return val, false
+		return Object_Return(to_object_base(val)), true
 
 	// expressions
 	case ma.Node_Prefix_Expression:
-		operand := eval(e, data.operand^)
+		operand, ok := eval(e, data.operand^)
+		if !ok do return operand, false
 		return eval_prefix_expression(e, data.op, to_object_base(operand))
 
 	case ma.Node_Infix_Expression:
-		left := eval(e, data.left^)
-		right := eval(e, data.right^)
+		left, ok := eval(e, data.left^)
+		if !ok do return left, false
+		right, ok2 := eval(e, data.right^)
+		if !ok2 do return right, ok2
 		return eval_infix_expression(e, data.op, to_object_base(left), to_object_base(right))
 
 	case ma.Node_Block_Expression:
@@ -183,14 +245,14 @@ eval :: proc(e: ^Evaluator, node: ma.Node) -> Object {
 
 	// literals
 	case int:
-		return Object_Base(data)
+		return Object_Base(data), true
 
 	case bool:
-		return Object_Base(data)
+		return Object_Base(data), true
 
 	case string:
-		return Object_Base(data)
+		return Object_Base(data), true
 	}
 
-	return nil
+	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ma.ast_type(node))), false
 }
