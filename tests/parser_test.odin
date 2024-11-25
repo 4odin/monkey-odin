@@ -506,53 +506,6 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 }
 
 @(test)
-test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
-	tests := []struct {
-		input:    string,
-		expected: string,
-	} {
-		{"-a * b", "((-a)*b)"},
-		{"!-a", "(!(-a))"},
-		{"a + b + c", "((a+b)+c)"},
-		{"a * b * c", "((a*b)*c)"},
-		{"a * b / c", "((a*b)/c)"},
-		{"a + b / c", "(a+(b/c))"},
-		{"a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)"},
-		{"3 + 4; -5 * 5", "(3+4)\n((-5)*5)"},
-		{"5 > 4 == 3 < 4", "((5>4)==(3<4))"},
-		{"5 < 4 != 3 > 4", "((5<4)!=(3>4))"},
-		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))"},
-		{"true", "true"},
-		{"false", "false"},
-		{"3 > 5 == false", "((3>5)==false)"},
-		{"3 < 5 == true", "((3<5)==true)"},
-		{"1 + (2 + 3) + 4", "((1+(2+3))+4)"},
-		{"(5 + 5) * 2", "((5+5)*2)"},
-		{"2 / (5 + 5)", "(2/(5+5))"},
-		{"-(5 + 5)", "(-(5+5))"},
-		{"!(true == true)", "(!(true==true))"},
-		{"if x > y { x }", "if (x>y) { x }"},
-		{"if x > y { x } else { y }", "if (x>y) { x } else { y }"},
-		{"fn() {};", "Fn () {  }"},
-		{"fn(x) {};", "Fn (x) {  }"},
-		{"fn(x, y) {};", "Fn (x, y) {  }"},
-		{"fn(x, y) { x + y };", "Fn (x, y) { (x+y) }"},
-		{"a + add(b * c) + d", "((a+add((b*c)))+d)"},
-		{"add(a, b, 1, 2 * 4, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2*4), (4+5), add(6, (7*8)))"},
-		{"add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))"},
-	}
-
-	defer free_all(context.temp_allocator)
-
-	for test_case, i in tests {
-		if !ast_string_is_valid(test_case.input, test_case.expected) {
-			log.errorf("Test [%d] has failed", i)
-			testing.fail(t)
-		}
-	}
-}
-
-@(test)
 test_parsing_if_expression :: proc(t: ^testing.T) {
 	input := "if x < y { x }"
 
@@ -800,5 +753,52 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 	if !infix_expression_is_valid(&stmt.arguments[2], 4, "+", 5) {
 		testing.fail(t)
 		return
+	}
+}
+
+@(test)
+test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
+	tests := []struct {
+		input:    string,
+		expected: string,
+	} {
+		{"-a * b", "((-a)*b)"},
+		{"!-a", "(!(-a))"},
+		{"a + b + c", "((a+b)+c)"},
+		{"a * b * c", "((a*b)*c)"},
+		{"a * b / c", "((a*b)/c)"},
+		{"a + b / c", "(a+(b/c))"},
+		{"a + b * c + d / e - f", "(((a+(b*c))+(d/e))-f)"},
+		{"3 + 4; -5 * 5", "(3+4)\n((-5)*5)"},
+		{"5 > 4 == 3 < 4", "((5>4)==(3<4))"},
+		{"5 < 4 != 3 > 4", "((5<4)!=(3>4))"},
+		{"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3+(4*5))==((3*1)+(4*5)))"},
+		{"true", "true"},
+		{"false", "false"},
+		{"3 > 5 == false", "((3>5)==false)"},
+		{"3 < 5 == true", "((3<5)==true)"},
+		{"1 + (2 + 3) + 4", "((1+(2+3))+4)"},
+		{"(5 + 5) * 2", "((5+5)*2)"},
+		{"2 / (5 + 5)", "(2/(5+5))"},
+		{"-(5 + 5)", "(-(5+5))"},
+		{"!(true == true)", "(!(true==true))"},
+		{"if x > y { x }", "if (x>y) { x }"},
+		{"if x > y { x } else { y }", "if (x>y) { x } else { y }"},
+		{"fn() {};", "Fn () {  }"},
+		{"fn(x) {};", "Fn (x) {  }"},
+		{"fn(x, y) {};", "Fn (x, y) {  }"},
+		{"fn(x, y) { x + y };", "Fn (x, y) { (x+y) }"},
+		{"a + add(b * c) + d", "((a+add((b*c)))+d)"},
+		{"add(a, b, 1, 2 * 4, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2*4), (4+5), add(6, (7*8)))"},
+		{"add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))"},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	for test_case, i in tests {
+		if !ast_string_is_valid(test_case.input, test_case.expected) {
+			log.errorf("Test [%d] has failed", i)
+			testing.fail(t)
+		}
 	}
 }
