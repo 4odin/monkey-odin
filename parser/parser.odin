@@ -9,6 +9,17 @@ import st "core:strings"
 
 import ma "../ast"
 
+@(private = "file")
+Dap_Item :: union {
+	ma.Node_Program,
+	ma.Node_Block_Expression,
+	[dynamic]ma.Node,
+	[dynamic]ma.Node_Identifier,
+}
+
+@(private = "file")
+Dynamic_Arr_Pool :: distinct [dynamic]Dap_Item
+
 Parser :: struct {
 	l:               Lexer,
 	cur_token:       Token,
@@ -18,13 +29,13 @@ Parser :: struct {
 	errors:          [dynamic]string,
 	_arena:          vmem.Arena,
 	pool:            mem.Allocator,
-	temp_allocator:  mem.Allocator,
+	dyn_arr_pool:    Dynamic_Arr_Pool,
 
 	// methods
 	config:          proc(
 		p: ^Parser,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
-		temp_allocator := context.temp_allocator,
+		dyn_arr_reserved := 10,
 	) -> mem.Allocator_Error,
 	parse:           proc(p: ^Parser, input: string) -> ma.Node_Program,
 	pool_total_used: proc(p: ^Parser) -> uint,
@@ -115,7 +126,7 @@ infix_parse_fns := #partial [Token_Type]Infix_Parse_Fn {
 
 @(private = "file")
 peek_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := st.builder_make(p.temp_allocator)
+	msg := st.builder_make(p.pool)
 
 	fmt.sbprintf(&msg, "expected next token to be '%s', got '%s' instead", t, p.peek_token.type)
 	append(&p.errors, st.to_string(msg))
@@ -147,21 +158,45 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 parser_config :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
-	temp_allocator := context.temp_allocator,
+	dyn_arr_reserved := 10,
 ) -> mem.Allocator_Error {
-	p.temp_allocator = temp_allocator
-
 	err := vmem.arena_init_growing(&p._arena, pool_reserved_block_size)
 	if err == .None do p.pool = vmem.arena_allocator(&p._arena)
 
-	p.errors.allocator = context.temp_allocator
+	if dyn_arr_reserved > 0 {
+		p.dyn_arr_pool = make(Dynamic_Arr_Pool, 0, dyn_arr_reserved, p.pool)
+	}
+
+	p.errors.allocator = p.pool
 
 	return err
 }
 
 @(private = "file")
 parser_free :: proc(p: ^Parser) {
-	vmem.arena_destroy(&p._arena)
+	defer {
+		vmem.arena_destroy(&p._arena)
+		p._arena = {}
+
+		delete(p.dyn_arr_pool)
+		p.dyn_arr_pool = {}
+	}
+
+	for arr in p.dyn_arr_pool {
+		switch dyn_arr in arr {
+		case ma.Node_Program:
+			delete(dyn_arr)
+
+		case ma.Node_Block_Expression:
+			delete(dyn_arr)
+
+		case [dynamic]ma.Node_Identifier:
+			delete(dyn_arr)
+
+		case [dynamic]ma.Node:
+			delete(dyn_arr)
+		}
+	}
 }
 
 @(private = "file")
@@ -189,7 +224,7 @@ parse_identifier :: proc(p: ^Parser) -> ma.Node {
 parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
 	value, ok := strconv.parse_int(string(p.cur_token.text_slice))
 	if !ok {
-		msg := st.builder_make(p.temp_allocator)
+		msg := st.builder_make(p.pool)
 
 		fmt.sbprintf(&msg, "could not parse %s as integer", p.l.input)
 		append(&p.errors, st.to_string(msg))
@@ -273,19 +308,18 @@ parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
-	block: ma.Node_Block_Expression
-	block.allocator = p.pool
+	block := register_dyn_arr_in_pool(p, ma.Node_Block_Expression)
 
 	next_token(p)
 
 	for !current_token_is(p, .Right_Brace) && !current_token_is(p, .EOF) {
 		stmt := parse_statement(p)
-		if stmt != nil do append(&block, stmt)
+		if stmt != nil do append(block, stmt)
 
 		next_token(p)
 	}
 
-	return block
+	return block^
 }
 
 @(private = "file")
@@ -318,27 +352,26 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
-	identifiers: [dynamic]ma.Node_Identifier
-	identifiers.allocator = p.pool
+	identifiers := register_dyn_arr_in_pool(p, [dynamic]ma.Node_Identifier)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
-		return identifiers
+		return identifiers^
 	}
 
 	next_token(p)
 
-	append(&identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
+	append(identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
 
 	for peek_token_is(p, .Comma) {
 		next_token(p)
 		next_token(p)
-		append(&identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
+		append(identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
 	}
 
 	if !expect_peek(p, .Right_Paren) do return nil
 
-	return identifiers
+	return identifiers^
 }
 
 @(private = "file")
@@ -356,18 +389,17 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
-	args: [dynamic]ma.Node
-	args.allocator = p.pool
+	args := register_dyn_arr_in_pool(p, [dynamic]ma.Node)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
-		return args
+		return args^
 	}
 
 	next_token(p)
 	arg := parse_expression(p, .Lowest)
 
-	append(&args, arg)
+	append(args, arg)
 
 	for peek_token_is(p, .Comma) {
 		next_token(p)
@@ -376,12 +408,12 @@ parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
 		arg1 := parse_expression(p, .Lowest)
 		if arg1 == nil do return nil
 
-		append(&args, arg1)
+		append(args, arg1)
 	}
 
 	if !expect_peek(p, .Right_Paren) do return nil
 
-	return args
+	return args^
 }
 
 @(private = "file")
@@ -394,7 +426,7 @@ parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
 
 @(private = "file")
 no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := st.builder_make(p.temp_allocator)
+	msg := st.builder_make(p.pool)
 
 	fmt.sbprintf(&msg, "unexpected token '%v'", t)
 	append(&p.errors, st.to_string(msg))
@@ -451,15 +483,21 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	next_token(p)
 	next_token(p)
 
-	program: ma.Node_Program
-	program.allocator = p.pool
+	program := register_dyn_arr_in_pool(p, ma.Node_Program)
 
 	for p.cur_token.type != .EOF {
 		if stmt := parse_statement(p); stmt != nil {
-			append(&program, stmt)
+			append(program, stmt)
 		}
 		next_token(p)
 	}
 
-	return program
+	return program^
+}
+
+@(private = "file")
+register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
+	append(&p.dyn_arr_pool, make(T))
+
+	return &p.dyn_arr_pool[len(p.dyn_arr_pool) - 1].(T)
 }
