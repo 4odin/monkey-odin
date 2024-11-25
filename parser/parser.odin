@@ -21,26 +21,28 @@ Dap_Item :: union {
 Dynamic_Arr_Pool :: distinct [dynamic]Dap_Item
 
 Parser :: struct {
-	l:               Lexer,
-	cur_token:       Token,
-	peek_token:      Token,
+	l:                      Lexer,
+	cur_token:              Token,
+	peek_token:             Token,
 
 	// memory
-	errors:          [dynamic]string,
-	_arena:          vmem.Arena,
-	pool:            mem.Allocator,
-	dyn_arr_pool:    Dynamic_Arr_Pool,
+	errors:                 [dynamic]string,
+	_arena:                 vmem.Arena,
+	_arena_reserved:        uint,
+	_pool:                  mem.Allocator,
+	_dyn_arr_pool:          Dynamic_Arr_Pool,
+	_dyn_arr_pool_reserved: uint,
 
 	// methods
-	config:          proc(
+	config:                 proc(
 		p: ^Parser,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
-		dyn_arr_reserved := 10,
+		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	parse:           proc(p: ^Parser, input: string) -> ma.Node_Program,
-	pool_total_used: proc(p: ^Parser) -> uint,
-	free:            proc(p: ^Parser),
-	clear_errors:    proc(p: ^Parser),
+	parse:                  proc(p: ^Parser, input: string) -> ma.Node_Program,
+	pool_total_used:        proc(p: ^Parser) -> uint,
+	free:                   proc(p: ^Parser),
+	clear_errors:           proc(p: ^Parser),
 }
 
 parser :: proc() -> Parser {
@@ -126,7 +128,7 @@ infix_parse_fns := #partial [Token_Type]Infix_Parse_Fn {
 
 @(private = "file")
 peek_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := st.builder_make(p.pool)
+	msg := st.builder_make(p._pool)
 
 	fmt.sbprintf(&msg, "expected next token to be '%s', got '%s' instead", t, p.peek_token.type)
 	append(&p.errors, st.to_string(msg))
@@ -155,19 +157,29 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
+parser_init_pools :: proc(p: ^Parser) -> mem.Allocator_Error {
+	err := vmem.arena_init_growing(&p._arena, p._arena_reserved)
+	if err == .None do p._pool = vmem.arena_allocator(&p._arena)
+
+	if p._dyn_arr_pool_reserved > 0 {
+		p._dyn_arr_pool = make(Dynamic_Arr_Pool, 0, p._dyn_arr_pool_reserved, p._pool)
+	}
+
+	return err
+}
+
+@(private = "file")
 parser_config :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
-	dyn_arr_reserved := 10,
+	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
-	err := vmem.arena_init_growing(&p._arena, pool_reserved_block_size)
-	if err == .None do p.pool = vmem.arena_allocator(&p._arena)
+	p._arena_reserved = pool_reserved_block_size
+	p._dyn_arr_pool_reserved = dyn_arr_reserved
 
-	if dyn_arr_reserved > 0 {
-		p.dyn_arr_pool = make(Dynamic_Arr_Pool, 0, dyn_arr_reserved, p.pool)
-	}
+	err := parser_init_pools(p)
 
-	p.errors.allocator = p.pool
+	p.errors.allocator = p._pool
 
 	return err
 }
@@ -178,11 +190,11 @@ parser_free :: proc(p: ^Parser) {
 		vmem.arena_destroy(&p._arena)
 		p._arena = {}
 
-		delete(p.dyn_arr_pool)
-		p.dyn_arr_pool = {}
+		delete(p._dyn_arr_pool)
+		p._dyn_arr_pool = {}
 	}
 
-	for arr in p.dyn_arr_pool {
+	for arr in p._dyn_arr_pool {
 		switch dyn_arr in arr {
 		case ma.Node_Program:
 			delete(dyn_arr)
@@ -224,7 +236,7 @@ parse_identifier :: proc(p: ^Parser) -> ma.Node {
 parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
 	value, ok := strconv.parse_int(string(p.cur_token.text_slice))
 	if !ok {
-		msg := st.builder_make(p.pool)
+		msg := st.builder_make(p._pool)
 
 		fmt.sbprintf(&msg, "could not parse %s as integer", p.l.input)
 		append(&p.errors, st.to_string(msg))
@@ -254,7 +266,7 @@ parse_let_statement :: proc(p: ^Parser) -> ma.Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return ma.Node_Let_Statement{name = name, value = new_clone(value, p.pool)}
+	return ma.Node_Let_Statement{name = name, value = new_clone(value, p._pool)}
 }
 
 @(private = "file")
@@ -266,7 +278,7 @@ parse_return_statement :: proc(p: ^Parser) -> ma.Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return ma.Node_Return_Statement{ret_val = new_clone(ret_val, p.pool)}
+	return ma.Node_Return_Statement{ret_val = new_clone(ret_val, p._pool)}
 }
 
 @(private = "file")
@@ -278,7 +290,7 @@ parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
 	operand := parse_expression(p, .Prefix)
 	if operand == nil do return nil
 
-	return ma.Node_Prefix_Expression{op = op, operand = new_clone(operand, p.pool)}
+	return ma.Node_Prefix_Expression{op = op, operand = new_clone(operand, p._pool)}
 }
 
 @(private = "file")
@@ -292,8 +304,8 @@ parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
 
 	return ma.Node_Infix_Expression {
 		op = op,
-		left = new_clone(left, p.pool),
-		right = new_clone(right, p.pool),
+		left = new_clone(left, p._pool),
+		right = new_clone(right, p._pool),
 	}
 }
 
@@ -344,7 +356,7 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 	}
 
 	return ma.Node_If_Expression {
-		condition = new_clone(condition, p.pool),
+		condition = new_clone(condition, p._pool),
 		consequence = consequence,
 		alternative = alternative,
 	}
@@ -421,12 +433,12 @@ parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
 	arguments := parse_call_arguments(p)
 	if arguments == nil do return nil
 
-	return ma.Node_Call_Expression{function = new_clone(function, p.pool), arguments = arguments}
+	return ma.Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}
 }
 
 @(private = "file")
 no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
-	msg := st.builder_make(p.pool)
+	msg := st.builder_make(p._pool)
 
 	fmt.sbprintf(&msg, "unexpected token '%v'", t)
 	append(&p.errors, st.to_string(msg))
@@ -483,6 +495,8 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	next_token(p)
 	next_token(p)
 
+	if cap(p._dyn_arr_pool) == 0 || p._pool == {} do parser_init_pools(p)
+
 	program := register_dyn_arr_in_pool(p, ma.Node_Program)
 
 	for p.cur_token.type != .EOF {
@@ -497,7 +511,7 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 
 @(private = "file")
 register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
-	append(&p.dyn_arr_pool, make(T))
+	append(&p._dyn_arr_pool, make(T))
 
-	return &p.dyn_arr_pool[len(p.dyn_arr_pool) - 1].(T)
+	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(T)
 }
