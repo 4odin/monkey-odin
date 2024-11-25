@@ -14,7 +14,6 @@ Evaluator :: struct {
 	// memory
 	_arena:          vmem.Arena,
 	pool:            mem.Allocator,
-	temp_allocator:  mem.Allocator,
 
 	// internal builders
 	_sb:             st.Builder,
@@ -27,7 +26,6 @@ Evaluator :: struct {
 	config:          proc(
 		e: ^Evaluator,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
-		temp_allocator := context.temp_allocator,
 	) -> mem.Allocator_Error,
 	free:            proc(e: ^Evaluator),
 	pool_total_used: proc(e: ^Evaluator) -> uint,
@@ -46,13 +44,12 @@ evaluator :: proc() -> Evaluator {
 evaluator_config :: proc(
 	e: ^Evaluator,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
-	temp_allocator := context.temp_allocator,
 ) -> mem.Allocator_Error {
-	e.temp_allocator = temp_allocator
-	e._sb = st.builder_make(temp_allocator)
-
 	err := vmem.arena_init_growing(&e._arena, pool_reserved_block_size)
-	if err == .None do e.pool = vmem.arena_allocator(&e._arena)
+	if err == .None {
+		e.pool = vmem.arena_allocator(&e._arena)
+		e._sb = st.builder_make(e.pool)
+	}
 
 	e._env = environment()
 
@@ -77,7 +74,7 @@ new_error :: proc(e: ^Evaluator, str: string, args: ..any) -> string {
 
 	err := st.to_string(e._sb)
 
-	return st.clone(err, e.temp_allocator)
+	return st.clone(err, e.pool)
 }
 
 @(private = "file")

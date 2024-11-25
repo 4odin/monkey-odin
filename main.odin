@@ -121,7 +121,6 @@ main :: proc() {
 		program := parser->parse(input)
 		{
 			defer parser->free()
-			defer free_all(context.temp_allocator)
 
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)
