@@ -30,6 +30,8 @@ Token_Type :: enum {
 	Right_Paren,
 	Left_Brace,
 	Right_Brace,
+	Left_Bracket,
+	Right_Bracket,
 
 	// Keywords
 	Function,

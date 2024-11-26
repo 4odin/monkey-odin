@@ -29,6 +29,7 @@ if 5 < 10 {
 10 != 9;
 "foobar"
 "foo bar"
+[]
     `
 
 
@@ -135,6 +136,10 @@ if 5 < 10 {
 		//
 		{.String, "foobar"},
 		{.String, "foo bar"},
+
+		//
+		{.Left_Bracket, "["},
+		{.Right_Bracket, "]"},
 
 		// end of file
 		{.EOF, ""},

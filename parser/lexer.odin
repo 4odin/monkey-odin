@@ -153,6 +153,12 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case '}':
 		tok = token_from_current_char(l, .Right_Brace)
 
+	case '[':
+		tok = token_from_current_char(l, .Left_Bracket)
+
+	case ']':
+		tok = token_from_current_char(l, .Right_Bracket)
+
 	case '"':
 		tok = create_string(l)
 
