@@ -27,7 +27,7 @@ evaluate_is_valid_get_evaluator :: proc(
 
 	program := p->parse(input)
 	if len(p.errors) > 0 {
-		for err in p.errors do log.errorf("parser error: %s", err)
+		if print_errors do for err in p.errors do log.errorf("parser error: %s", err)
 
 		return nil, nil, false
 	}
@@ -417,6 +417,7 @@ test_eval_errors :: proc(t: ^testing.T) {
 		"let a = 12; let a = true;", // already exists
 		"let f = fn(x) {}; f()", // wrong number of arguments
 		"let f = fn(x,y) {}; f(1)", // wrong number of arguments
+		"let f 2", // parser error
 	}
 
 
