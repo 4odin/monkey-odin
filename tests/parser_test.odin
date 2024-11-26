@@ -905,6 +905,186 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 		return
 	}
 }
+
+@(test)
+test_parsing_hash_table_literal :: proc(t: ^testing.T) {
+	input := `{"one": 1, "two": 2, "three": 3}`
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	if !ok {
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt) != 3 {
+		log.errorf("length of the hash table is not 3, got='%d'", len(stmt))
+		testing.fail(t)
+		return
+	}
+
+	expected := map[string]int {
+		"one"   = 1,
+		"two"   = 2,
+		"three" = 3,
+	}
+	defer delete(expected)
+
+	for key, expected_value in expected {
+		value, key_exists := stmt[key]
+		if !key_exists {
+			log.errorf("key '%s' does not exist in the hash table", key)
+			testing.fail(t)
+			continue
+		}
+
+		if !literal_value_is_valid(&value, expected_value) {
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
+	input := `{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}`
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	if !ok {
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt) != 3 {
+		log.errorf("length of the hash table is not 3, got='%d'", len(stmt))
+		testing.fail(t)
+		return
+	}
+
+	expected := map[string]proc(node: ^ma.Node) -> bool {
+		"one" = proc(node: ^ma.Node) -> bool {
+			return infix_expression_is_valid(node, 0, "+", 1)
+		},
+		"two" = proc(node: ^ma.Node) -> bool {
+			return infix_expression_is_valid(node, 10, "-", 8)
+		},
+		"three" = proc(node: ^ma.Node) -> bool {
+			return infix_expression_is_valid(node, 15, "/", 5)
+		},
+	}
+	defer delete(expected)
+
+	for key, test_fn in expected {
+		value, key_exists := stmt[key]
+		if !key_exists {
+			log.errorf("key '%s' does not exist in the hash table", key)
+			testing.fail(t)
+			continue
+		}
+
+		if !test_fn(&value) {
+			log.errorf("test failed for the key '%s'", key)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
+	input := "{}"
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	if !ok {
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt) != 0 {
+		log.errorf("length of the hash table is not 0, got='%d'", len(stmt))
+		testing.fail(t)
+		return
+	}
+}
+
 @(test)
 test_parsing_index_expression :: proc(t: ^testing.T) {
 	input := "my_array[1 + 1]"

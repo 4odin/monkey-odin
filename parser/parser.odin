@@ -15,6 +15,7 @@ Dap_Item :: union {
 	ma.Node_Block_Expression,
 	[dynamic]ma.Node,
 	[dynamic]ma.Node_Identifier,
+	ma.Node_Hash_Table_Literal,
 }
 
 @(private = "file")
@@ -111,6 +112,7 @@ prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
 	.Bang         = parse_prefix_expression,
 	.Left_Paren   = parse_grouped_expression,
 	.Left_Bracket = parse_array_literal,
+	.Left_Brace   = parse_hash_table_literal,
 	.Function     = parse_function_literal,
 	.True         = parse_boolean_literal,
 	.False        = parse_boolean_literal,
@@ -138,7 +140,6 @@ peek_error :: proc(p: ^Parser, t: Token_Type) {
 	fmt.sbprintf(&msg, "expected next token to be '%s', got '%s' instead", t, p.peek_token.type)
 	append(&p.errors, st.to_string(msg))
 }
-
 
 @(private = "file")
 current_token_is :: proc(p: ^Parser, t: Token_Type) -> bool {
@@ -181,6 +182,13 @@ register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
 }
 
 @(private = "file")
+register_hash_table_in_pool :: proc(p: ^Parser) -> ^ma.Node_Hash_Table_Literal {
+	append(&p._dyn_arr_pool, make(ma.Node_Hash_Table_Literal))
+
+	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(ma.Node_Hash_Table_Literal)
+}
+
+@(private = "file")
 parser_config :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
@@ -218,6 +226,9 @@ parser_free :: proc(p: ^Parser) {
 			delete(item)
 
 		case [dynamic]ma.Node:
+			delete(item)
+
+		case ma.Node_Hash_Table_Literal:
 			delete(item)
 		}
 	}
@@ -284,6 +295,41 @@ parse_array_literal :: proc(p: ^Parser) -> ma.Node {
 	if !ok do return nil
 
 	return ma.Node_Array_Literal(result)
+}
+
+@(private = "file")
+parse_hash_table_literal :: proc(p: ^Parser) -> ma.Node {
+	result := register_hash_table_in_pool(p)
+
+	for !peek_token_is(p, .Right_Brace) {
+		next_token(p)
+
+		key_expr := parse_expression(p, .Lowest)
+
+		key, ok := key_expr.(string)
+		if !ok {
+			msg := st.builder_make(p._pool)
+
+			fmt.sbprintf(&msg, "expected key to be 'string', got '%s' instead", ma.ast_type(key))
+			append(&p.errors, st.to_string(msg))
+
+			return nil
+		}
+
+		if !expect_peek(p, .Colon) do return nil
+
+		next_token(p)
+
+		value := parse_expression(p, .Lowest)
+
+		result[key] = value
+
+		if !peek_token_is(p, .Right_Brace) && !expect_peek(p, .Comma) do return nil
+	}
+
+	if !expect_peek(p, .Right_Brace) do return nil
+
+	return result^
 }
 
 @(private = "file")
