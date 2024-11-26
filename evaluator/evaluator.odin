@@ -57,8 +57,9 @@ evaluator :: proc() -> Evaluator {
 }
 
 @(private = "file")
-register_in_pool :: proc(e: ^Evaluator, $T: typeid) -> ^T {
-	append(&e._dyn_arr_pool, make(T))
+register_in_pool :: proc(e: ^Evaluator, $T: typeid, reserved := 0) -> ^T {
+	if reserved == 0 do append(&e._dyn_arr_pool, make(T))
+	else do append(&e._dyn_arr_pool, make(T, reserved, reserved))
 
 	return &e._dyn_arr_pool[len(e._dyn_arr_pool) - 1].(T)
 }
@@ -511,6 +512,9 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 				#partial switch arg in args[0] {
 				case string:
 					return len(arg), true
+
+				case ^Obj_Array:
+					return len(arg), true
 				}
 
 				return new_error(
@@ -519,6 +523,115 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 						obj_type(args[0]),
 					),
 					false
+			}
+
+	case "first":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				if len(args) != 1 {
+					return new_error(
+							e,
+							"'first' function error: wrong number of arguments, wants='1', got='%d'",
+							len(args),
+						),
+						false
+				}
+
+				arr, ok := args[0].(^Obj_Array)
+				if !ok {
+					return new_error(
+							e,
+							"'first' function error: not supported for argument of type '%v'",
+							obj_type(args[0]),
+						),
+						false
+				}
+
+				if len(arr) > 0 do return arr[0], true
+
+				return NULL, true
+			}
+
+	case "last":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				if len(args) != 1 {
+					return new_error(
+							e,
+							"'last' function error: wrong number of arguments, wants='1', got='%d'",
+							len(args),
+						),
+						false
+				}
+
+				arr, ok := args[0].(^Obj_Array)
+				if !ok {
+					return new_error(
+							e,
+							"'last' function error: not supported for argument of type '%v'",
+							obj_type(args[0]),
+						),
+						false
+				}
+
+				if len(arr) > 0 do return arr[len(arr) - 1], true
+
+				return NULL, true
+			}
+
+	case "rest":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				if len(args) != 1 {
+					return new_error(
+							e,
+							"'rest' function error: wrong number of arguments, wants='1', got='%d'",
+							len(args),
+						),
+						false
+				}
+
+				arr, ok := args[0].(^Obj_Array)
+				if !ok {
+					return new_error(
+							e,
+							"'rest' function error: not supported for argument of type '%v'",
+							obj_type(args[0]),
+						),
+						false
+				}
+
+				if len(arr) > 0 {
+					new_arr := register_in_pool(e, Obj_Array, len(arr) - 1)
+					copy(new_arr[:], arr[1:])
+
+					return new_arr, true
+				}
+
+				return NULL, true
+			}
+
+	case "push":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				if len(args) != 2 {
+					return new_error(
+							e,
+							"'push' function error: wrong number of arguments, wants='2', got='%d'",
+							len(args),
+						),
+						false
+				}
+
+				arr, ok := args[0].(^Obj_Array)
+				if !ok {
+					return new_error(
+							e,
+							"'push' function error: not supported for argument of type '%v'",
+							obj_type(args[0]),
+						),
+						false
+				}
+
+				append(arr, args[1])
+
+				return Obj_Null{}, true
 			}
 	}
 
