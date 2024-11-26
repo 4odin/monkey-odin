@@ -7,6 +7,7 @@ Token_Type :: enum {
 	// Identifier + literals
 	Identifier,
 	Int,
+	String,
 
 	// Operators
 	Assign,

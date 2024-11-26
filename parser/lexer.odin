@@ -75,6 +75,18 @@ create_number :: proc(l: ^Lexer) -> Token {
 }
 
 @(private = "file")
+create_string :: proc(l: ^Lexer) -> Token {
+	start := l.pos + 1 // bypass opening '"'
+
+	for {
+		read_char(l)
+		if l.ch == '"' || l.ch == 0 do break
+	}
+
+	return token(.String, l.input, start, l.pos - start)
+}
+
+@(private = "file")
 init :: proc(l: ^Lexer, input: string) {
 	l.ch = 0
 	l.input = transmute([]u8)input
@@ -140,6 +152,9 @@ next_token :: proc(l: ^Lexer) -> Token {
 
 	case '}':
 		tok = token_from_current_char(l, .Right_Brace)
+
+	case '"':
+		tok = create_string(l)
 
 	case 0:
 		tok.text_slice = {}
