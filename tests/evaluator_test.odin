@@ -417,7 +417,7 @@ test_eval_errors :: proc(t: ^testing.T) {
 		"let a = 12; let a = true;", // already exists
 		"let f = fn(x) {}; f()", // wrong number of arguments
 		"let f = fn(x,y) {}; f(1)", // wrong number of arguments
-		"let f 2", // parser error
+		"let f 2", // parser error also must be caught
 	}
 
 
