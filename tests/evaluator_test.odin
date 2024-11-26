@@ -468,6 +468,37 @@ test_eval_builtin_functions :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_eval_array_index_expression :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	} {
+		{"[1, 2, 3][0]", 1},
+		{"[1, 2, 3][1]", 2},
+		{"[1, 2, 3][2]", 3},
+		{"let i = 0; [1][i]", 1},
+		{"[1, 2, 3][1 + 1];", 3},
+		{"let my_arr = [1, 2, 3]; my_arr[2]", 3},
+		{"let my_arr = [1, 2, 3]; my_arr[0] + my_arr[1] + my_arr[2];", 6},
+		{"let my_arr = [1, 2, 3]; let i = my_arr[0]; my_arr[i]", 2},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
 test_eval_array_literals :: proc(t: ^testing.T) {
 	input := "[1, 2 * 2, 3 + 3]"
 
@@ -535,6 +566,8 @@ test_eval_errors :: proc(t: ^testing.T) {
 		"let f 2", // parser error also must be caught
 		"len(1)", // wrong arg type for builtin function
 		`len("one", "two")`, // wrong number of arguments for builtin function
+		"[1, 2, 3][3]", // index out of boundary
+		"[1, 2, 3][-1]", // index out of boundary
 	}
 
 

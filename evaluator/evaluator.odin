@@ -461,6 +461,40 @@ apply_function :: proc(
 }
 
 @(private = "file")
+eval_array_index_expression :: proc(
+	e: ^Evaluator,
+	array: ^Obj_Array,
+	index: int,
+) -> (
+	Object_Base,
+	bool,
+) {
+	max := len(array) - 1
+
+	if index < 0 || index > max {
+		return new_error(e, "index out of boundary expect '0..%d', got='%d'", max, index), false
+	}
+
+	return array[index], true
+}
+
+@(private = "file")
+eval_index_expression :: proc(
+	e: ^Evaluator,
+	operand: Object_Base,
+	index: Object_Base,
+) -> (
+	Object_Base,
+	bool,
+) {
+	if obj_type(operand) == ^Obj_Array && obj_type(index) == int {
+		return eval_array_index_expression(e, operand.(^Obj_Array), index.(int))
+	}
+
+	return new_error(e, "index operator does not support: '%v'", obj_type(operand)), false
+}
+
+@(private = "file")
 find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 	switch name {
 	case "len":
@@ -554,6 +588,15 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		if !args_success do return args[0], false
 
 		return apply_function(e, to_object_base(function), args)
+
+	case ma.Node_Index_Expression:
+		operand, ok := eval(e, data.operand^, current_env)
+		if !ok do return operand, false
+
+		index, index_ok := eval(e, data.index^, current_env)
+		if !index_ok do return index, false
+
+		return eval_index_expression(e, to_object_base(operand), to_object_base(index))
 
 	// literals
 	case int:
