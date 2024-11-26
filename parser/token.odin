@@ -24,6 +24,7 @@ Token_Type :: enum {
 	// Delimiters
 	Comma,
 	Semicolon,
+	Colon,
 
 	// Groups
 	Left_Paren,

@@ -138,6 +138,9 @@ next_token :: proc(l: ^Lexer) -> Token {
 	case ';':
 		tok = token_from_current_char(l, .Semicolon)
 
+	case ':':
+		tok = token_from_current_char(l, .Colon)
+
 	case ',':
 		tok = token_from_current_char(l, .Comma)
 

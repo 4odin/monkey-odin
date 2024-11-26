@@ -30,6 +30,7 @@ if 5 < 10 {
 "foobar"
 "foo bar"
 []
+:
     `
 
 
@@ -140,6 +141,9 @@ if 5 < 10 {
 		//
 		{.Left_Bracket, "["},
 		{.Right_Bracket, "]"},
+
+		//
+		{.Colon, ":"},
 
 		// end of file
 		{.EOF, ""},
