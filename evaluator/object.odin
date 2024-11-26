@@ -15,6 +15,8 @@ Obj_Function :: struct {
 
 Obj_Builtin_Fn :: #type proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool)
 
+Obj_Array :: distinct [dynamic]Object_Base
+
 Object_Base :: union {
 	int,
 	bool,
@@ -24,6 +26,7 @@ Object_Base :: union {
 	Obj_Null,
 	^Obj_Function,
 	Obj_Builtin_Fn,
+	^Obj_Array,
 }
 
 Object_Return :: distinct Object_Base
@@ -109,5 +112,19 @@ _obj_inspect_ptr :: proc(obj: ^Object, sb: ^st.Builder) {
 
 	case Obj_Null:
 		fmt.sbprint(sb, "(null)")
+
+	case ^Obj_Function:
+		fmt.sbprint(sb, "(function)")
+
+	case Obj_Builtin_Fn:
+		fmt.sbprint(sb, "(builtin function)")
+
+	case ^Obj_Array:
+		fmt.sbprint(sb, "[")
+		for item, i in data {
+			obj_inspect(item, sb)
+			if i < len(data) - 1 do fmt.sbprint(sb, ", ")
+		}
+		fmt.sbprint(sb, "]")
 	}
 }

@@ -468,6 +468,50 @@ test_eval_builtin_functions :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_eval_array_literals :: proc(t: ^testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	evaluated, e, ok := evaluate_is_valid_get_evaluator(input)
+	defer if ok {
+		e->free()
+		free(e)
+	}
+
+	if !ok {
+		testing.fail(t)
+		return
+	}
+
+	arr, is_arr := evaluated.(^me.Obj_Array)
+	if !is_arr {
+		log.errorf("expected array object but got '%v'", me.obj_type(evaluated))
+		testing.fail(t)
+		return
+	}
+
+	if len(arr) != 3 {
+		log.errorf("expected array length to be 3 but got='%d'", len(arr))
+		testing.fail(t)
+		return
+	}
+
+	if !integer_object_is_valid(arr[0], 1) {
+		log.errorf("arr[0] does not match")
+		testing.fail(t)
+	}
+
+	if !integer_object_is_valid(arr[1], 4) {
+		log.errorf("arr[1] does not match")
+		testing.fail(t)
+	}
+
+	if !integer_object_is_valid(arr[2], 6) {
+		log.errorf("arr[2] does not match")
+		testing.fail(t)
+	}
+}
+
+@(test)
 test_eval_errors :: proc(t: ^testing.T) {
 	inputs := [?]string {
 		"5 + true;",

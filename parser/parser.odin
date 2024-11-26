@@ -174,6 +174,13 @@ parser_init_pools :: proc(p: ^Parser) -> mem.Allocator_Error {
 }
 
 @(private = "file")
+register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
+	append(&p._dyn_arr_pool, make(T))
+
+	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(T)
+}
+
+@(private = "file")
 parser_config :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
@@ -200,18 +207,18 @@ parser_free :: proc(p: ^Parser) {
 	}
 
 	for arr in p._dyn_arr_pool {
-		switch dyn_arr in arr {
+		switch item in arr {
 		case ma.Node_Program:
-			delete(dyn_arr)
+			delete(item)
 
 		case ma.Node_Block_Expression:
-			delete(dyn_arr)
+			delete(item)
 
 		case [dynamic]ma.Node_Identifier:
-			delete(dyn_arr)
+			delete(item)
 
 		case [dynamic]ma.Node:
-			delete(dyn_arr)
+			delete(item)
 		}
 	}
 }
@@ -542,11 +549,4 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	}
 
 	return program^
-}
-
-@(private = "file")
-register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
-	append(&p._dyn_arr_pool, make(T))
-
-	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(T)
 }

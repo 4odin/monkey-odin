@@ -8,12 +8,21 @@ import st "core:strings"
 import ma "../ast"
 
 @(private = "file")
+Dap_Item :: union {
+	Obj_Array,
+}
+
+@(private = "file")
+Dynamic_Arr_Pool :: distinct [dynamic]Dap_Item
+
+@(private = "file")
 NULL :: Obj_Null{}
 
 Evaluator :: struct {
 	// memory
 	_arena:          vmem.Arena,
 	_pool:           mem.Allocator,
+	_dyn_arr_pool:   Dynamic_Arr_Pool,
 
 	// internal builders
 	_sb:             st.Builder,
@@ -48,6 +57,13 @@ evaluator :: proc() -> Evaluator {
 }
 
 @(private = "file")
+register_in_pool :: proc(e: ^Evaluator, $T: typeid) -> ^T {
+	append(&e._dyn_arr_pool, make(T))
+
+	return &e._dyn_arr_pool[len(e._dyn_arr_pool) - 1].(T)
+}
+
+@(private = "file")
 evaluator_config :: proc(
 	e: ^Evaluator,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
@@ -56,6 +72,7 @@ evaluator_config :: proc(
 	if err == .None {
 		e._pool = vmem.arena_allocator(&e._arena)
 		e._sb = st.builder_make(e._pool)
+		e._dyn_arr_pool = make(Dynamic_Arr_Pool, e._pool)
 	}
 
 	e._env = environment()
@@ -70,8 +87,22 @@ evaluator_pool_total_used :: proc(e: ^Evaluator) -> uint {
 
 @(private = "file")
 evaluator_free :: proc(e: ^Evaluator) {
-	vmem.arena_destroy(&e._arena)
-	e._env->free()
+	defer {
+		vmem.arena_destroy(&e._arena)
+		e._arena = {}
+
+		e._env->free()
+
+		delete(e._dyn_arr_pool)
+		e._dyn_arr_pool = {}
+	}
+
+	for arr in e._dyn_arr_pool {
+		switch item in arr {
+		case Obj_Array:
+			delete(item)
+		}
+	}
 }
 
 @(private = "file")
@@ -327,7 +358,7 @@ eval_identifier :: proc(
 }
 
 @(private = "file")
-eval_array_of_expressions :: proc(
+eval_array_of_expressions_fixed :: proc(
 	e: ^Evaluator,
 	expressions: [dynamic]ma.Node,
 	current_env: ^Environment,
@@ -340,6 +371,26 @@ eval_array_of_expressions :: proc(
 	for expr in expressions {
 		evaluated, ok := eval(e, expr, current_env)
 		append(&args, to_object_base(evaluated))
+		if !ok do return args, false
+	}
+
+	return args, true
+}
+
+@(private = "file")
+eval_array_of_expressions_registered :: proc(
+	e: ^Evaluator,
+	expressions: ma.Node_Array_Literal,
+	current_env: ^Environment,
+) -> (
+	^Obj_Array,
+	bool,
+) {
+	args := register_in_pool(e, Obj_Array)
+
+	for expr in expressions {
+		evaluated, ok := eval(e, expr, current_env)
+		append(args, to_object_base(evaluated))
 		if !ok do return args, false
 	}
 
@@ -484,7 +535,7 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		function, ok := eval(e, data.function^, current_env)
 		if !ok do return function, false
 
-		args, args_success := eval_array_of_expressions(e, data.arguments, current_env)
+		args, args_success := eval_array_of_expressions_fixed(e, data.arguments, current_env)
 		if !args_success do return args[0], false
 
 		return apply_function(e, to_object_base(function), args)
@@ -498,6 +549,12 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 
 	case string:
 		return Object_Base(st.clone(data, e._pool)), true
+
+	case ma.Node_Array_Literal:
+		elements, ok := eval_array_of_expressions_registered(e, data, current_env)
+		if !ok do return Object_Base(elements), false
+
+		return Object_Base(elements), true
 	}
 
 	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ma.ast_type(node))), false
