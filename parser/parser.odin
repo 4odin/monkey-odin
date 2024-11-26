@@ -69,6 +69,7 @@ Precedence :: enum {
 	Product,
 	Prefix,
 	Call,
+	Index,
 }
 
 @(private = "file")
@@ -82,6 +83,7 @@ precedences := #partial [Token_Type]Precedence {
 	.Equal        = .Equals,
 	.Not_Equal    = .Equals,
 	.Left_Paren   = .Call,
+	.Left_Bracket = .Index,
 }
 
 @(private = "file")
@@ -126,6 +128,7 @@ infix_parse_fns := #partial [Token_Type]Infix_Parse_Fn {
 	.Equal        = parse_infix_expression,
 	.Not_Equal    = parse_infix_expression,
 	.Left_Paren   = parse_call_expression,
+	.Left_Bracket = parse_index_expression,
 }
 
 @(private = "file")
@@ -453,6 +456,19 @@ parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
 	if !ok do return nil
 
 	return ma.Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}
+}
+
+@(private = "file")
+parse_index_expression :: proc(p: ^Parser, operand: ma.Node) -> ma.Node {
+	next_token(p)
+	index := parse_expression(p, .Lowest)
+
+	if !expect_peek(p, .Right_Bracket) do return nil
+
+	return ma.Node_Index_Expression {
+		operand = new_clone(operand, p._pool),
+		index = new_clone(index, p._pool),
+	}
 }
 
 @(private = "file")

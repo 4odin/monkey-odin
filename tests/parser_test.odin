@@ -570,7 +570,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 
 	if st.to_string(sb) != expected {
 		log.errorf(
-			"ast_to_string ris not valid, expected='%s', got='%s'",
+			"ast_to_string result is not valid, expected='%s', got='%s'",
 			expected,
 			st.to_string(sb),
 		)
@@ -905,10 +905,57 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 		return
 	}
 }
+@(test)
+test_parsing_index_expression :: proc(t: ^testing.T) {
+	input := "my_array[1 + 1]"
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(ma.Node_Index_Expression)
+	if !ok {
+		log.errorf("program[0] is not Node_Index_Expression, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if !literal_value_is_valid(stmt.operand, "my_array") {
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(stmt.index, 1, "+", 1) {
+		testing.fail(t)
+		return
+	}
+}
 
 @(test)
 test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
-	tests := []struct {
+	tests := [?]struct {
 		input:    string,
 		expected: string,
 	} {
@@ -941,6 +988,8 @@ test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
 		{"a + add(b * c) + d", "((a+add((b*c)))+d)"},
 		{"add(a, b, 1, 2 * 4, 4 + 5, add(6, 7 * 8))", "add(a, b, 1, (2*4), (4+5), add(6, (7*8)))"},
 		{"add(a + b + c * d / f + g)", "add((((a+b)+((c*d)/f))+g))"},
+		{"a * [1, 2, 3, 4][b * c] * d", "((a*([1, 2, 3, 4][(b*c)]))*d)"},
+		{"add(a * b[2], b[1], 2 * [1, 2][1])", "add((a*(b[2])), (b[1]), (2*([1, 2][1])))"},
 	}
 
 	defer free_all(context.temp_allocator)
