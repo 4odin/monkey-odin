@@ -173,6 +173,17 @@ _ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 		}
 		fmt.sbprint(sb, "]")
 
+	case Node_Hash_Table_Literal:
+		fmt.sbprint(sb, "{ ")
+		i := 0
+		for key, value in data {
+			fmt.sbprintf(sb, "%s:", key)
+			ast_to_string(value, sb)
+			if i < len(data) - 1 do fmt.sbprint(sb, ", ")
+			i += 1
+		}
+		fmt.sbprint(sb, " }")
+
 	case Node_Index_Expression:
 		fmt.sbprint(sb, "(")
 		ast_to_string(data.operand, sb)
@@ -233,10 +244,22 @@ _ast_copy_nodes :: proc(ast: ^[dynamic]Node, dst: ^[dynamic]Node, allocator: mem
 	}
 }
 
+@(private = "file")
+_ast_copy_array :: proc(
+	ast: ^Node_Array_Literal,
+	dst: ^Node_Array_Literal,
+	allocator: mem.Allocator,
+) {
+	for &stmt in ast {
+		append(dst, ast_copy(&stmt, allocator))
+	}
+}
+
 ast_copy_multiple :: proc {
 	_ast_copy_idents,
 	_ast_copy_block,
 	_ast_copy_nodes,
+	_ast_copy_array,
 }
 
 ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
@@ -246,13 +269,6 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 
 	case string:
 		return st.clone(data, allocator)
-
-	case Node_Infix_Expression:
-		return Node_Infix_Expression {
-			op = st.clone(data.op, allocator),
-			left = new_clone(ast_copy(data.left, allocator), allocator),
-			right = new_clone(ast_copy(data.right, allocator), allocator),
-		}
 
 	case Node_Identifier:
 		return Node_Identifier{value = st.clone(data.value, allocator)}
@@ -274,6 +290,13 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 			operand = new_clone(ast_copy(data.operand, allocator), allocator),
 		}
 
+	case Node_Infix_Expression:
+		return Node_Infix_Expression {
+			op = st.clone(data.op, allocator),
+			left = new_clone(ast_copy(data.left, allocator), allocator),
+			right = new_clone(ast_copy(data.right, allocator), allocator),
+		}
+
 	case Node_If_Expression:
 		consequence := make(Node_Block_Expression, 0, cap(data.consequence))
 		ast_copy_multiple(&data.consequence, &consequence, allocator)
@@ -289,6 +312,19 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 			consequence = consequence,
 			alternative = alternative,
 		}
+
+	case Node_Array_Literal:
+		arr_copy := make(Node_Array_Literal, 0, cap(data))
+		ast_copy_multiple(&data, &arr_copy, allocator)
+		return arr_copy
+
+	case Node_Hash_Table_Literal:
+		hash_copy := make(Node_Hash_Table_Literal, len(data))
+		for key, &value in data {
+			hash_copy[st.clone(key, allocator)] = ast_copy(&value, allocator)
+		}
+
+		return hash_copy
 
 	case Node_Function_Literal:
 		parameters := make([dynamic]Node_Identifier, 0, cap(data.parameters), allocator)
@@ -306,6 +342,12 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 		return Node_Call_Expression {
 			function = new_clone(ast_copy(data.function, allocator), allocator),
 			arguments = arguments,
+		}
+
+	case Node_Index_Expression:
+		return Node_Index_Expression {
+			operand = new_clone(ast_copy(data.operand, allocator), allocator),
+			index = new_clone(ast_copy(data.index, allocator), allocator),
 		}
 	}
 
