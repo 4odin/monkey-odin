@@ -103,9 +103,8 @@ eval_program_statements :: proc(
 		if _, ok_type := result.(Object_Return); ok_type do break
 	}
 
-	temp, is_str := to_object_base(result).(string)
-	if is_str {
-		result = Object_Base(st.clone(temp, allocator))
+	if str_obj, is_str := to_object_base(result).(string); is_str {
+		result = Object_Base(st.clone(str_obj, allocator))
 	}
 
 	return to_object_base(result), true
@@ -127,7 +126,11 @@ eval_block_statements :: proc(
 		result, ok = eval(e, stmt, current_env)
 		if !ok do return result, false
 
-		if obj_is_return(result) do return result, true
+		if obj_is_return(result) do break
+	}
+
+	if str_obj, is_str := to_object_base(result).(string); is_str {
+		result = Object_Base(st.clone(str_obj, e._pool))
 	}
 
 	return result, true
@@ -457,7 +460,7 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		return Object_Base(data), true
 
 	case string:
-		return Object_Base(data), true
+		return Object_Base(st.clone(data, e._pool)), true
 	}
 
 	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ma.ast_type(node))), false

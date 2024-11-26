@@ -225,8 +225,11 @@ ast_copy_multiple :: proc {
 
 ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 	#partial switch &data in ast {
-	case int, string, bool:
+	case int, bool:
 		return data
+
+	case string:
+		return st.clone(data, allocator)
 
 	case Node_Infix_Expression:
 		return Node_Infix_Expression {
