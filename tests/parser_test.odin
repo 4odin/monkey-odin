@@ -848,6 +848,65 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_parsing_array_literal :: proc(t: ^testing.T) {
+	input := "[1, 2 * 2, 3 + 3]"
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	stmt, ok := program[0].(ma.Node_Array_Literal)
+	if !ok {
+		log.errorf("program[0] is not Node_Array_Literal, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if len(stmt) != 3 {
+		log.errorf("length of the array is not 3, got='%d'", len(stmt))
+		testing.fail(t)
+		return
+	}
+
+	if !literal_value_is_valid(&stmt[0], 1) {
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(&stmt[1], 2, "*", 2) {
+		testing.fail(t)
+		return
+	}
+
+	if !infix_expression_is_valid(&stmt[2], 3, "+", 3) {
+		testing.fail(t)
+		return
+	}
+}
+
+@(test)
 test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
 	tests := []struct {
 		input:    string,

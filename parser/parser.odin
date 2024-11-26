@@ -102,16 +102,17 @@ Infix_Parse_Fn :: #type proc(p: ^Parser, left: ma.Node) -> ma.Node
 
 @(private = "file")
 prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
-	.Identifier = parse_identifier,
-	.Int        = parse_integer_literal,
-	.String     = parse_string_literal,
-	.Minus      = parse_prefix_expression,
-	.Bang       = parse_prefix_expression,
-	.Left_Paren = parse_grouped_expression,
-	.Function   = parse_function_literal,
-	.True       = parse_boolean_literal,
-	.False      = parse_boolean_literal,
-	.If         = parse_if_expression,
+	.Identifier   = parse_identifier,
+	.Int          = parse_integer_literal,
+	.String       = parse_string_literal,
+	.Minus        = parse_prefix_expression,
+	.Bang         = parse_prefix_expression,
+	.Left_Paren   = parse_grouped_expression,
+	.Left_Bracket = parse_array_literal,
+	.Function     = parse_function_literal,
+	.True         = parse_boolean_literal,
+	.False        = parse_boolean_literal,
+	.If           = parse_if_expression,
 }
 
 @(private = "file")
@@ -259,6 +260,14 @@ parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
 @(private = "file")
 parse_boolean_literal :: proc(p: ^Parser) -> ma.Node {
 	return current_token_is(p, .True)
+}
+
+@(private = "file")
+parse_array_literal :: proc(p: ^Parser) -> ma.Node {
+	result, ok := parse_expression_list(p, .Right_Bracket)
+	if !ok do return nil
+
+	return ma.Node_Array_Literal(result)
 }
 
 @(private = "file")
@@ -410,10 +419,10 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_call_arguments :: proc(p: ^Parser) -> ([dynamic]ma.Node, bool) {
+parse_expression_list :: proc(p: ^Parser, end: Token_Type) -> ([dynamic]ma.Node, bool) {
 	args := register_dyn_arr_in_pool(p, [dynamic]ma.Node)
 
-	if peek_token_is(p, .Right_Paren) {
+	if peek_token_is(p, end) {
 		next_token(p)
 		return args^, true
 	}
@@ -433,14 +442,14 @@ parse_call_arguments :: proc(p: ^Parser) -> ([dynamic]ma.Node, bool) {
 		append(args, arg1)
 	}
 
-	if !expect_peek(p, .Right_Paren) do return nil, false
+	if !expect_peek(p, end) do return nil, false
 
 	return args^, true
 }
 
 @(private = "file")
 parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
-	arguments, ok := parse_call_arguments(p)
+	arguments, ok := parse_expression_list(p, .Right_Paren)
 	if !ok do return nil
 
 	return ma.Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}

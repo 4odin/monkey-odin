@@ -165,6 +165,14 @@ _ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 		}
 		fmt.sbprint(sb, " }")
 
+	case Node_Array_Literal:
+		fmt.sbprint(sb, "[ ")
+		for stmt, i in data {
+			ast_to_string(stmt, sb)
+			if i < len(data) - 1 do fmt.sbprint(sb, ", ")
+		}
+		fmt.sbprint(sb, " ]")
+
 	case Node_Function_Literal:
 		fmt.sbprint(sb, "Fn (")
 		for param, i in data.parameters {
