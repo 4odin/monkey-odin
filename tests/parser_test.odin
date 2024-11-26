@@ -119,8 +119,12 @@ let foobar = y;
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -160,8 +164,12 @@ return 993322;
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -202,8 +210,12 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -236,8 +248,12 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -269,8 +285,12 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -295,6 +315,52 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 	}
 }
 
+@(test)
+test_parsing_string_literal :: proc(t: ^testing.T) {
+	input := `"hello world";`
+
+	p := mp.parser()
+	p->config()
+
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
+	}
+	defer p->free()
+
+	defer free_all(context.temp_allocator)
+
+	program := p->parse(input)
+
+	if parser_has_error(p) {
+		testing.fail(t)
+		return
+	}
+
+	if len(program) != 1 {
+		log.errorf("program does not contain 1 statement, got='%v'", len(program))
+
+		testing.fail(t)
+		return
+	}
+
+	literal, str_ok := program[0].(string)
+
+	if !str_ok {
+		log.errorf("expression is not string, got='%v'", ma.ast_type(program[0]))
+		testing.fail(t)
+		return
+	}
+
+	if literal != "hello world" {
+		log.errorf("string is not 'hello world', got='%s'", literal)
+		testing.fail(t)
+	}
+}
+
 prefix_test_case_is_ok :: proc(
 	test_number: int,
 	input: string,
@@ -304,11 +370,12 @@ prefix_test_case_is_ok :: proc(
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
 		log.errorf(
-			"test [%d] has failed, parser has unfreed memory: %v",
+			"test [%d] has failed, arena total used: %v, dynamic array pool unremoved items: %d",
 			test_number,
-			p->pool_total_used(),
+			arena,
+			dyn_arr_pool,
 		)
 	}
 	defer p->free()
@@ -419,8 +486,12 @@ infix_test_case_is_valid :: proc(
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("test has failed, parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -479,8 +550,12 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -512,8 +587,12 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -568,8 +647,12 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -635,8 +718,12 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 
@@ -702,8 +789,12 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 	p := mp.parser()
 	p->config()
 
-	defer if p->pool_total_used() != 0 {
-		log.errorf("parser has unfreed memory: %v", p->pool_total_used())
+	defer if ok, arena, dyn_arr_pool := p->is_freed(); !ok {
+		log.errorf(
+			"test has failed, arena total used: %v, dynamic array pool unremoved items: %d",
+			arena,
+			dyn_arr_pool,
+		)
 	}
 	defer p->free()
 

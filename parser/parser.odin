@@ -40,7 +40,7 @@ Parser :: struct {
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
 	parse:                  proc(p: ^Parser, input: string) -> ma.Node_Program,
-	pool_total_used:        proc(p: ^Parser) -> uint,
+	is_freed:               proc(p: ^Parser) -> (bool, uint, uint),
 	free:                   proc(p: ^Parser),
 	clear_errors:           proc(p: ^Parser),
 }
@@ -50,7 +50,7 @@ parser :: proc() -> Parser {
 		l = lexer(),
 		config = parser_config,
 		parse = parse_program,
-		pool_total_used = parser_pool_total_used,
+		is_freed = is_freed,
 		free = parser_free,
 		clear_errors = parser_clear_errors,
 	}
@@ -104,6 +104,7 @@ Infix_Parse_Fn :: #type proc(p: ^Parser, left: ma.Node) -> ma.Node
 prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
 	.Identifier = parse_identifier,
 	.Int        = parse_integer_literal,
+	.String     = parse_string_literal,
 	.Minus      = parse_prefix_expression,
 	.Bang       = parse_prefix_expression,
 	.Left_Paren = parse_grouped_expression,
@@ -212,8 +213,12 @@ parser_free :: proc(p: ^Parser) {
 }
 
 @(private = "file")
-parser_pool_total_used :: proc(p: ^Parser) -> uint {
-	return p._arena.total_reserved
+is_freed :: proc(p: ^Parser) -> (answer: bool, arena_used: uint, dyn_arr_pool_unremoved: uint) {
+	answer = p._pool == {} || cap(p._dyn_arr_pool) == 0
+	arena_used = p._arena.total_used
+	dyn_arr_pool_unremoved = cap(p._dyn_arr_pool)
+
+	return
 }
 
 @(private = "file")
@@ -230,6 +235,11 @@ next_token :: proc(p: ^Parser) {
 @(private = "file")
 parse_identifier :: proc(p: ^Parser) -> ma.Node {
 	return ma.Node_Identifier{string(p.cur_token.text_slice)}
+}
+
+@(private = "file")
+parse_string_literal :: proc(p: ^Parser) -> ma.Node {
+	return string(p.cur_token.text_slice)
 }
 
 @(private = "file")
@@ -495,7 +505,7 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	next_token(p)
 	next_token(p)
 
-	if cap(p._dyn_arr_pool) == 0 || p._pool == {} do parser_init_pools(p)
+	if ok, _, _ := p->is_freed(); ok do parser_init_pools(p)
 
 	program := register_dyn_arr_in_pool(p, ma.Node_Program)
 
