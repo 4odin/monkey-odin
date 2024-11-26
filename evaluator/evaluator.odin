@@ -22,7 +22,14 @@ Evaluator :: struct {
 	_env:            Environment,
 
 	// methods
-	eval:            proc(e: ^Evaluator, node: ma.Node_Program) -> (Object_Base, bool),
+	eval:            proc(
+		e: ^Evaluator,
+		node: ma.Node_Program,
+		allocator := context.allocator,
+	) -> (
+		Object_Base,
+		bool,
+	),
 	config:          proc(
 		e: ^Evaluator,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
@@ -78,7 +85,14 @@ new_error :: proc(e: ^Evaluator, str: string, args: ..any) -> string {
 }
 
 @(private = "file")
-eval_program_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> (Object_Base, bool) {
+eval_program_statements :: proc(
+	e: ^Evaluator,
+	program: ma.Node_Program,
+	allocator := context.allocator,
+) -> (
+	Object_Base,
+	bool,
+) {
 	result: Object
 	ok: bool
 
@@ -86,7 +100,12 @@ eval_program_statements :: proc(e: ^Evaluator, program: ma.Node_Program) -> (Obj
 		result, ok = eval(e, stmt, &e._env)
 		if !ok do return result.(Object_Base), false
 
-		if ret_val, ok_type := result.(Object_Return); ok_type do return to_object_base(ret_val), true
+		if _, ok_type := result.(Object_Return); ok_type do break
+	}
+
+	temp, is_str := to_object_base(result).(string)
+	if is_str {
+		result = Object_Base(st.clone(temp, allocator))
 	}
 
 	return to_object_base(result), true
@@ -201,6 +220,26 @@ eval_integer_infix_expression :: proc(
 }
 
 @(private = "file")
+eval_string_infix_expression :: proc(
+	e: ^Evaluator,
+	op: string,
+	left: string,
+	right: string,
+) -> (
+	Object_Base,
+	bool,
+) {
+	if op != "+" do return new_error(e, "unknown string infix operator '%s'", op), false
+
+	st.builder_reset(&e._sb)
+	fmt.sbprintf(&e._sb, "%s%s", left, right)
+
+	result := st.to_string(e._sb)
+
+	return st.clone(result, e._pool), true
+}
+
+@(private = "file")
 eval_infix_expression :: proc(
 	e: ^Evaluator,
 	op: string,
@@ -210,7 +249,11 @@ eval_infix_expression :: proc(
 	Object_Base,
 	bool,
 ) {
-	if ma.ast_type(left) == int && ma.ast_type(right) == int do return eval_integer_infix_expression(e, op, left.(int), right.(int))
+	if ma.ast_type(left) == int && ma.ast_type(right) == int {
+		return eval_integer_infix_expression(e, op, left.(int), right.(int))
+	} else if ma.ast_type(left) == string && ma.ast_type(right) == string {
+		return eval_string_infix_expression(e, op, left.(string), right.(string))
+	}
 
 	switch op {
 	case "==":
@@ -222,7 +265,7 @@ eval_infix_expression :: proc(
 
 	return new_error(
 			e,
-			"unknown operator '%s' for 'types '%v' and '%v'",
+			"unknown operator '%s' for types '%v' and '%v'",
 			op,
 			obj_type(left),
 			obj_type(right),

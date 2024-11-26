@@ -23,8 +23,6 @@ evaluate_is_valid_get_evaluator :: proc(
 	p->config()
 	defer p->free()
 
-	defer free_all(context.temp_allocator)
-
 	program := p->parse(input)
 	if len(p.errors) > 0 {
 		if print_errors do for err in p.errors do log.errorf("parser error: %s", err)
@@ -35,14 +33,14 @@ evaluate_is_valid_get_evaluator :: proc(
 	e := new_clone(me.evaluator())
 	e->config()
 
-	evaluated, ok := e->eval(program)
+	evaluated, ok := e->eval(program, context.temp_allocator)
 	if !ok {
 		if print_errors do log.errorf("evaluator error: %s", evaluated)
 
 		e->free()
 		free(e)
 
-		return "", nil, false
+		return nil, nil, false
 	}
 
 	return evaluated, e, true
@@ -84,6 +82,21 @@ boolean_object_is_valid :: proc(obj: me.Object_Base, expected: bool) -> bool {
 
 	if result != expected {
 		log.errorf("object has wrong value. got='%d', expected='%d'", result, expected)
+		return false
+	}
+
+	return true
+}
+
+string_object_is_valid :: proc(obj: me.Object_Base, expected: string) -> bool {
+	result, ok := obj.(string)
+	if !ok {
+		log.errorf("object is not string, got='%v'", me.obj_type(obj))
+		return false
+	}
+
+	if result != expected {
+		log.errorf("object has wrong value. got='%s', expected='%s'", result, expected)
 		return false
 	}
 
@@ -164,6 +177,28 @@ test_eval_boolean_expression :: proc(t: ^testing.T) {
 		}
 
 		if !boolean_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_eval_string_expression :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: string,
+	}{{`"Hello World"`, "Hello World"}, {`"Hello" + " " + "World"`, "Hello World"}}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !string_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
 			testing.fail(t)
 		}
@@ -404,6 +439,7 @@ test_eval_errors :: proc(t: ^testing.T) {
 		"5 + true; 5;",
 		"-true",
 		"true+false;",
+		`"Hello" - "World"`,
 		"5; true + false; 5",
 		"if 10 > 1 {true + false;}",
 		`if 10 > 1 {
