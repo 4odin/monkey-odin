@@ -13,6 +13,8 @@ Obj_Function :: struct {
 	env:        ^Environment,
 }
 
+Obj_Builtin_Fn :: #type proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool)
+
 Object_Base :: union {
 	int,
 	bool,
@@ -21,6 +23,7 @@ Object_Base :: union {
 	// Objects
 	Obj_Null,
 	^Obj_Function,
+	Obj_Builtin_Fn,
 }
 
 Object_Return :: distinct Object_Base

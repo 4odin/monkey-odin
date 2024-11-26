@@ -319,10 +319,11 @@ eval_identifier :: proc(
 	Object_Base,
 	bool,
 ) {
-	val, ok := current_env->get(node.value)
-	if !ok do return new_error(e, "identifier '%s' is not declared", node.value), false
+	if val, ok := current_env->get(node.value); ok do return val, true
 
-	return val, true
+	if builtin := find_builtin_fn(node.value); builtin != nil do return builtin, true
+
+	return new_error(e, "identifier '%s' is not declared", node.value), false
 }
 
 @(private = "file")
@@ -369,23 +370,59 @@ apply_function :: proc(
 	Object_Base,
 	bool,
 ) {
-	function, ok := fn.(^Obj_Function)
-	if !ok do return new_error(e, "not a function: '%v'", obj_type(fn)), false
+	#partial switch function in fn {
+	case ^Obj_Function:
+		if len(function.parameters) != len(args) {
+			return new_error(
+					e,
+					"number of passed arguments does not match the number of needed parameters, need='%d', got='%d'",
+					len(function.parameters),
+					len(args),
+				),
+				false
 
-	if len(function.parameters) != len(args) {
-		return new_error(
-				e,
-				"number of passed arguments does not match the number of needed parameters, need='%d', got='%d'",
-				len(function.parameters),
-				len(args),
-			),
-			false
+		}
 
+		extended_env := extend_function_env(e, function, args)
+		evaluated, success := eval(e, function.body, extended_env)
+		return to_object_base(evaluated), success
+
+	case Obj_Builtin_Fn:
+		return function(e, args)
 	}
 
-	extended_env := extend_function_env(e, function, args)
-	evaluated, success := eval(e, function.body, extended_env)
-	return to_object_base(evaluated), success
+	return new_error(e, "not a function: '%v'", obj_type(fn)), false
+}
+
+@(private = "file")
+find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
+	switch name {
+	case "len":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				if len(args) != 1 {
+					return new_error(
+							e,
+							"'len' function error: wrong number of arguments, wants='1', got='%d'",
+							len(args),
+						),
+						false
+				}
+
+				#partial switch arg in args[0] {
+				case string:
+					return len(arg), true
+				}
+
+				return new_error(
+						e,
+						"'len' function error: not supported for argument of type '%v'",
+						obj_type(args[0]),
+					),
+					false
+			}
+	}
+
+	return nil
 }
 
 @(private = "file")

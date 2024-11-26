@@ -433,6 +433,41 @@ add_two(2)`, 4},
 }
 
 @(test)
+test_eval_builtin_functions :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: union {
+			int,
+			string,
+		},
+	}{{`len("")`, 0}, {`len("four")`, 4}, {`len("hello world")`, 11}}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		switch expected in test_case.expected {
+		case int:
+			if !integer_object_is_valid(evaluated, expected) {
+				log.errorf("test[%d] has failed", i)
+				testing.fail(t)
+			}
+
+		case string:
+			if !string_object_is_valid(evaluated, expected) {
+				log.errorf("test[%d] has failed", i)
+				testing.fail(t)
+			}
+		}
+
+	}
+}
+
+@(test)
 test_eval_errors :: proc(t: ^testing.T) {
 	inputs := [?]string {
 		"5 + true;",
@@ -454,6 +489,8 @@ test_eval_errors :: proc(t: ^testing.T) {
 		"let f = fn(x) {}; f()", // wrong number of arguments
 		"let f = fn(x,y) {}; f(1)", // wrong number of arguments
 		"let f 2", // parser error also must be caught
+		"len(1)", // wrong arg type for builtin function
+		`len("one", "two")`, // wrong number of arguments for builtin function
 	}
 
 
