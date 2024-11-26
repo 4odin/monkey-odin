@@ -50,7 +50,7 @@ parser :: proc() -> Parser {
 		l = lexer(),
 		config = parser_config,
 		parse = parse_program,
-		is_freed = is_freed,
+		is_freed = parser_is_freed,
 		free = parser_free,
 		clear_errors = parser_clear_errors,
 	}
@@ -224,7 +224,13 @@ parser_free :: proc(p: ^Parser) {
 }
 
 @(private = "file")
-is_freed :: proc(p: ^Parser) -> (answer: bool, arena_used: uint, dyn_arr_pool_unremoved: uint) {
+parser_is_freed :: proc(
+	p: ^Parser,
+) -> (
+	answer: bool,
+	arena_used: uint,
+	dyn_arr_pool_unremoved: uint,
+) {
 	answer = p._pool == {} || cap(p._dyn_arr_pool) == 0
 	arena_used = p._arena.total_used
 	dyn_arr_pool_unremoved = cap(p._dyn_arr_pool)

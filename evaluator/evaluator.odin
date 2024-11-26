@@ -20,18 +20,18 @@ NULL :: Obj_Null{}
 
 Evaluator :: struct {
 	// memory
-	_arena:          vmem.Arena,
-	_pool:           mem.Allocator,
-	_dyn_arr_pool:   Dynamic_Arr_Pool,
+	_arena:        vmem.Arena,
+	_pool:         mem.Allocator,
+	_dyn_arr_pool: Dynamic_Arr_Pool,
 
 	// internal builders
-	_sb:             st.Builder,
+	_sb:           st.Builder,
 
 	// data storage
-	_env:            Environment,
+	_env:          Environment,
 
 	// methods
-	eval:            proc(
+	eval:          proc(
 		e: ^Evaluator,
 		node: ma.Node_Program,
 		allocator := context.allocator,
@@ -39,12 +39,12 @@ Evaluator :: struct {
 		Object_Base,
 		bool,
 	),
-	config:          proc(
+	config:        proc(
 		e: ^Evaluator,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	) -> mem.Allocator_Error,
-	free:            proc(e: ^Evaluator),
-	pool_total_used: proc(e: ^Evaluator) -> uint,
+	free:          proc(e: ^Evaluator),
+	is_freed:      proc(e: ^Evaluator) -> (bool, uint, uint),
 }
 
 evaluator :: proc() -> Evaluator {
@@ -52,7 +52,7 @@ evaluator :: proc() -> Evaluator {
 		eval = eval_program_statements,
 		config = evaluator_config,
 		free = evaluator_free,
-		pool_total_used = evaluator_pool_total_used,
+		is_freed = evaluator_is_freed,
 	}
 }
 
@@ -103,6 +103,21 @@ evaluator_free :: proc(e: ^Evaluator) {
 			delete(item)
 		}
 	}
+}
+
+@(private = "file")
+evaluator_is_freed :: proc(
+	e: ^Evaluator,
+) -> (
+	answer: bool,
+	arena_used: uint,
+	dyn_arr_pool_unremoved: uint,
+) {
+	answer = e._pool == {} || cap(e._dyn_arr_pool) == 0
+	arena_used = e._arena.total_used
+	dyn_arr_pool_unremoved = cap(e._dyn_arr_pool)
+
+	return
 }
 
 @(private = "file")

@@ -86,8 +86,12 @@ main :: proc() {
 				)
 			}
 
-			if evaluator->pool_total_used() != 0 {
-				fmt.eprintfln("evaluator has unfreed memory: %v", evaluator->pool_total_used())
+			if ok, arena, dyn_arr_pool := evaluator->is_freed(); !ok {
+				fmt.eprintfln(
+					"evaluator has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
+					arena,
+					dyn_arr_pool,
+				)
 			}
 		}
 	}
