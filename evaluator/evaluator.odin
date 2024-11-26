@@ -13,7 +13,7 @@ NULL :: Obj_Null{}
 Evaluator :: struct {
 	// memory
 	_arena:          vmem.Arena,
-	pool:            mem.Allocator,
+	_pool:           mem.Allocator,
 
 	// internal builders
 	_sb:             st.Builder,
@@ -47,8 +47,8 @@ evaluator_config :: proc(
 ) -> mem.Allocator_Error {
 	err := vmem.arena_init_growing(&e._arena, pool_reserved_block_size)
 	if err == .None {
-		e.pool = vmem.arena_allocator(&e._arena)
-		e._sb = st.builder_make(e.pool)
+		e._pool = vmem.arena_allocator(&e._arena)
+		e._sb = st.builder_make(e._pool)
 	}
 
 	e._env = environment()
@@ -74,7 +74,7 @@ new_error :: proc(e: ^Evaluator, str: string, args: ..any) -> string {
 
 	err := st.to_string(e._sb)
 
-	return st.clone(err, e.pool)
+	return st.clone(err, e._pool)
 }
 
 @(private = "file")
@@ -280,6 +280,69 @@ eval_identifier :: proc(
 }
 
 @(private = "file")
+eval_array_of_expressions :: proc(
+	e: ^Evaluator,
+	expressions: [dynamic]ma.Node,
+	current_env: ^Environment,
+) -> (
+	[dynamic]Object_Base,
+	bool,
+) {
+	args := make([dynamic]Object_Base, 0, len(expressions), e._pool)
+
+	for expr in expressions {
+		evaluated, ok := eval(e, expr, current_env)
+		append(&args, to_object_base(evaluated))
+		if !ok do return args, false
+	}
+
+	return args, true
+}
+
+@(private = "file")
+extend_function_env :: proc(
+	e: ^Evaluator,
+	fn: ^Obj_Function,
+	args: [dynamic]Object_Base,
+) -> ^Environment {
+	env := new_enclosed_environment(fn.env, len(fn.parameters), e._pool)
+
+	for param, idx in fn.parameters {
+		env->set(param.value, args[idx])
+	}
+
+	return env
+}
+
+@(private = "file")
+apply_function :: proc(
+	e: ^Evaluator,
+	fn: Object_Base,
+	args: [dynamic]Object_Base,
+) -> (
+	Object_Base,
+	bool,
+) {
+	function, ok := fn.(^Obj_Function)
+	if !ok do return new_error(e, "not a function: '%v'", obj_type(fn)), false
+
+	if len(function.parameters) != len(args) {
+		return new_error(
+				e,
+				"number of passed arguments does not match the number of needed parameters, need='%d', got='%d'",
+				len(function.parameters),
+				len(args),
+			),
+			false
+
+	}
+
+	extended_env := extend_function_env(e, function, args)
+	evaluated, success := eval(e, function.body, extended_env)
+	return to_object_base(evaluated), success
+}
+
+@(private = "file")
 eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object, bool) {
 	#partial switch &data in node {
 
@@ -296,7 +359,7 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		_, ok = current_env->get(data.name)
 		if ok do return Object_Base(new_error(e, "identifier '%s' is already declared", data.name)), false
 
-		current_env->set(st.clone(data.name, e.pool), to_object_base(val))
+		current_env->set(st.clone(data.name, e._pool), to_object_base(val))
 		return Object_Base(NULL), true
 
 	// expressions
@@ -322,23 +385,26 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		return eval_if_expression(e, data, current_env)
 
 	case ma.Node_Function_Literal:
-		fn := new(Obj_Function, e.pool)
+		fn := new(Obj_Function, e._pool)
 
-		fn.parameters = make(
-			[dynamic]ma.Node_Identifier,
-			len(data.parameters),
-			cap(data.parameters),
-			e.pool,
-		)
-		copy(fn.parameters[:], data.parameters[:])
+		fn.parameters = make([dynamic]ma.Node_Identifier, 0, cap(data.parameters), e._pool)
+		ma.ast_copy_multiple(&data.parameters, &fn.parameters, e._pool)
 
-		fn.body = make(ma.Node_Block_Expression, 0, cap(data.body), e.pool)
-
-		ma.ast_copy_multiple(&data.body, &fn.body, e.pool)
+		fn.body = make(ma.Node_Block_Expression, 0, cap(data.body), e._pool)
+		ma.ast_copy_multiple(&data.body, &fn.body, e._pool)
 
 		fn.env = current_env
 
 		return Object_Base(fn), true
+
+	case ma.Node_Call_Expression:
+		function, ok := eval(e, data.function^, current_env)
+		if !ok do return function, false
+
+		args, args_success := eval_array_of_expressions(e, data.arguments, current_env)
+		if !args_success do return args[0], false
+
+		return apply_function(e, to_object_base(function), args)
 
 	// literals
 	case int:

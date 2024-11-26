@@ -2,6 +2,7 @@ package monkey_evaluator
 
 Environment :: struct {
 	store: map[string]Object_Base,
+	outer: ^Environment,
 
 	// methods
 	get:   proc(env: ^Environment, name: string) -> (Object_Base, bool),
@@ -9,14 +10,18 @@ Environment :: struct {
 	free:  proc(env: ^Environment),
 }
 
-environment :: proc() -> Environment {
-	return {get = environment_get, set = environment_set, free = environment_free}
+environment :: proc(outer: ^Environment = nil) -> Environment {
+	return {get = environment_get, set = environment_set, free = environment_free, outer = outer}
 }
 
-new_environment :: proc(allocator := context.allocator) -> ^Environment {
-	env := new(Environment, allocator)
-
-	return env
+new_enclosed_environment :: proc(
+	outer: ^Environment,
+	reserved: uint,
+	allocator := context.allocator,
+) -> ^Environment {
+	env := environment(outer)
+	env.store = make(map[string]Object_Base, reserved, allocator)
+	return new_clone(env, allocator)
 }
 
 @(private = "file")
@@ -26,7 +31,10 @@ environment_free :: proc(env: ^Environment) {
 
 @(private = "file")
 environment_get :: proc(env: ^Environment, name: string) -> (Object_Base, bool) {
-	return env.store[name]
+	obj, ok := env.store[name]
+	if !ok && env.outer != nil {obj, ok = env.outer->get(name)}
+
+	return obj, ok
 }
 
 @(private = "file")

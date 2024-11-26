@@ -12,7 +12,7 @@ import u "./utils"
 
 _ :: mem
 
-PROMPT :: ">>"
+PROMPT :: ">"
 QUIT_CMD :: ":q"
 
 main :: proc() {
@@ -105,7 +105,7 @@ main :: proc() {
 	defer evaluator->free()
 
 	for {
-		fmt.printf("%s %s", username, PROMPT)
+		fmt.printf("%s%s ", username, PROMPT)
 
 		buf: [1024]byte
 		_, err := os.read(os.stdin, buf[:])

@@ -400,12 +400,12 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
+parse_call_arguments :: proc(p: ^Parser) -> ([dynamic]ma.Node, bool) {
 	args := register_dyn_arr_in_pool(p, [dynamic]ma.Node)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
-		return args^
+		return args^, true
 	}
 
 	next_token(p)
@@ -418,20 +418,20 @@ parse_call_arguments :: proc(p: ^Parser) -> [dynamic]ma.Node {
 		next_token(p)
 
 		arg1 := parse_expression(p, .Lowest)
-		if arg1 == nil do return nil
+		if arg1 == nil do return nil, false
 
 		append(args, arg1)
 	}
 
-	if !expect_peek(p, .Right_Paren) do return nil
+	if !expect_peek(p, .Right_Paren) do return nil, false
 
-	return args^
+	return args^, true
 }
 
 @(private = "file")
 parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
-	arguments := parse_call_arguments(p)
-	if arguments == nil do return nil
+	arguments, ok := parse_call_arguments(p)
+	if !ok do return nil
 
 	return ma.Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}
 }

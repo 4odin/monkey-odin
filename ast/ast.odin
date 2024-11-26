@@ -27,14 +27,6 @@ Node :: union {
 	Node_Index_Expression,
 }
 
-// ***************************************************************************************
-// NODES
-//    Nodes are only those which cannot be used as a valid general data type other as a
-//    parser output and evaluation input
-//    each of the fields in any of the "node"s is a Node Pointer which points to the actual
-//    Node in 'a' pool
-// ***************************************************************************************
-
 Node_Program :: distinct [dynamic]Node
 
 Node_Let_Statement :: struct {
@@ -197,7 +189,7 @@ _ast_to_string_ptr :: proc(ast: ^Node, sb: ^st.Builder) {
 }
 
 @(private = "file")
-ast_copy_idents :: proc(
+_ast_copy_idents :: proc(
 	ast: ^[dynamic]Node_Identifier,
 	dst: ^[dynamic]Node_Identifier,
 	allocator: mem.Allocator,
@@ -208,7 +200,7 @@ ast_copy_idents :: proc(
 }
 
 @(private = "file")
-ast_copy_block :: proc(
+_ast_copy_block :: proc(
 	ast: ^Node_Block_Expression,
 	dst: ^Node_Block_Expression,
 	allocator: mem.Allocator,
@@ -219,16 +211,16 @@ ast_copy_block :: proc(
 }
 
 @(private = "file")
-ast_copy_nodes :: proc(ast: ^[dynamic]Node, dst: ^[dynamic]Node, allocator: mem.Allocator) {
+_ast_copy_nodes :: proc(ast: ^[dynamic]Node, dst: ^[dynamic]Node, allocator: mem.Allocator) {
 	for &stmt in ast {
 		append(dst, ast_copy(&stmt, allocator))
 	}
 }
 
 ast_copy_multiple :: proc {
-	ast_copy_idents,
-	ast_copy_block,
-	ast_copy_nodes,
+	_ast_copy_idents,
+	_ast_copy_block,
+	_ast_copy_nodes,
 }
 
 ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
@@ -280,16 +272,16 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 		}
 
 	case Node_Function_Literal:
-		parameters := make([dynamic]Node_Identifier, 0, cap(data.parameters))
+		parameters := make([dynamic]Node_Identifier, 0, cap(data.parameters), allocator)
 		ast_copy_multiple(&data.parameters, &parameters, allocator)
 
-		body := make(Node_Block_Expression, 0, cap(data.body))
+		body := make(Node_Block_Expression, 0, cap(data.body), allocator)
 		ast_copy_multiple(&data.body, &body, allocator)
 
 		return Node_Function_Literal{parameters = parameters, body = body}
 
 	case Node_Call_Expression:
-		arguments := make([dynamic]Node, 0, cap(data.arguments))
+		arguments := make([dynamic]Node, 0, cap(data.arguments), allocator)
 		ast_copy_multiple(&data.arguments, &arguments, allocator)
 
 		return Node_Call_Expression {

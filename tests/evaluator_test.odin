@@ -362,6 +362,42 @@ test_eval_function_object :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_eval_function_application :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	} {
+		{"let identity = fn(x) { x; }; identity(5);", 5},
+		{"let identity = fn(x) { return x; }; identity(5);", 5},
+		{"let double = fn(x) { x * 2; }; double(5);", 10},
+		{"let add = fn(x, y) { x * y; }; add(5, 5);", 25},
+		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+		{"fn (x) { x; }(5)", 5},
+		{`
+let new_adder = fn(x) {
+	fn(y) {x + y};
+};
+
+let add_two = new_adder(2);
+add_two(2)`, 4},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
 test_eval_errors :: proc(t: ^testing.T) {
 	inputs := [?]string {
 		"5 + true;",
@@ -379,6 +415,8 @@ test_eval_errors :: proc(t: ^testing.T) {
             }`,
 		"foobar", // does not exist
 		"let a = 12; let a = true;", // already exists
+		"let f = fn(x) {}; f()", // wrong number of arguments
+		"let f = fn(x,y) {}; f(1)", // wrong number of arguments
 	}
 
 
