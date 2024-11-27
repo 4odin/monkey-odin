@@ -1,8 +1,13 @@
 package monkey_vm
 
 import "core:encoding/endian"
+import "core:fmt"
+import st "core:strings"
 
-Op_Code :: enum u8 {
+Instructions :: []byte
+Opcode :: byte
+
+Opcodes :: enum Opcode {
 	Constant,
 }
 
@@ -11,20 +16,24 @@ Definition :: struct {
 	operand_widths: []int,
 }
 
-definitions := [Op_Code]Definition {
+definitions := [Opcodes]Definition {
 	.Constant = {"OpConstant", {2}},
 }
 
-lookup :: proc(op: byte) -> (Definition, bool) {
-	def := definitions[Op_Code(op)]
+lookup :: proc(op: Opcodes) -> (Definition, bool) {
+	def := definitions[Opcodes(op)]
 
 	if def.name == "" do return {}, false
 
 	return def, true
 }
 
-instruction_make :: proc(allocator := context.allocator, op: Op_Code, operands: ..int) -> []byte {
-	def, ok := lookup(byte(op))
+instruction_make :: proc(
+	allocator := context.allocator,
+	op: Opcodes,
+	operands: ..int,
+) -> Instructions {
+	def, ok := lookup(op)
 	if !ok do return {}
 
 	inst_len := 1
@@ -32,7 +41,7 @@ instruction_make :: proc(allocator := context.allocator, op: Op_Code, operands: 
 		inst_len += w
 	}
 
-	instruction := make([]byte, inst_len, allocator)
+	instruction := make(Instructions, inst_len, allocator)
 	instruction[0] = byte(op)
 
 	offset := 1
@@ -46,4 +55,77 @@ instruction_make :: proc(allocator := context.allocator, op: Op_Code, operands: 
 	}
 
 	return instruction
+}
+
+@(private = "file")
+format_instruction :: proc(sb: ^st.Builder, def: Definition, operands: []int) {
+	operand_count := len(def.operand_widths)
+
+	if len(operands) != operand_count {
+		fmt.sbprintfln(
+			sb,
+			"ERROR: operand len '%d' does not match defined '%d'",
+			len(operands),
+			operand_count,
+		)
+		return
+	}
+
+	switch operand_count {
+	case 1:
+		fmt.sbprintf(sb, "%s %d", def.name, operands[0])
+		return
+	}
+
+	fmt.sbprintfln(sb, "ERROR: unhandled operand_count for %s", def.name)
+}
+
+instructions_to_string :: proc(
+	instructions: Instructions,
+	allocator := context.allocator,
+) -> string {
+	sb := st.builder_make(allocator)
+
+	i := 0
+	for i < len(instructions) {
+		def, ok := lookup(Opcodes(instructions[i]))
+		if !ok {
+			fmt.sbprintfln(&sb, "ERROR: instruction is not defined: %v", instructions[i])
+			continue
+		}
+
+		operands, read := read_operands(def, instructions[i + 1:], allocator)
+
+		fmt.sbprintf(&sb, "%04d ", i)
+		format_instruction(&sb, def, operands)
+		fmt.sbprintln(&sb)
+
+		i += 1 + read
+	}
+
+	return st.to_string(sb)
+}
+
+read_operands :: proc(
+	def: Definition,
+	ins: Instructions,
+	allocator := context.allocator,
+) -> (
+	[]int,
+	int,
+) {
+	operands := make([]int, len(def.operand_widths), allocator)
+	offset := 0
+
+	for width, i in def.operand_widths {
+		switch width {
+		case 2:
+			val, _ := endian.get_u16(ins[offset:], .Big)
+			operands[i] = int(val)
+		}
+
+		offset += width
+	}
+
+	return operands, offset
 }
