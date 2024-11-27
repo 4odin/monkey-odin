@@ -689,6 +689,20 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 
 				return Obj_Null{}, true
 			}
+
+	case "puts":
+		return proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool) {
+				st.builder_reset(&e._sb)
+
+				for arg in args {
+					obj_inspect(arg, &e._sb)
+					fmt.sbprintln(&e._sb)
+				}
+
+				fmt.print(st.to_string(e._sb))
+
+				return Obj_Null{}, true
+			}
 	}
 
 	return nil
