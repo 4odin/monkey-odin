@@ -13,6 +13,8 @@ Obj_Function :: struct {
 	env:        ^Environment,
 }
 
+Obj_Hash_Table :: map[string]Object_Base
+
 Obj_Builtin_Fn :: #type proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Object_Base, bool)
 
 Obj_Array :: distinct [dynamic]Object_Base
@@ -27,6 +29,7 @@ Object_Base :: union {
 	^Obj_Function,
 	Obj_Builtin_Fn,
 	^Obj_Array,
+	^Obj_Hash_Table,
 }
 
 Object_Return :: distinct Object_Base
@@ -126,5 +129,16 @@ _obj_inspect_ptr :: proc(obj: ^Object, sb: ^st.Builder) {
 			if i < len(data) - 1 do fmt.sbprint(sb, ", ")
 		}
 		fmt.sbprint(sb, "]")
+
+	case ^Obj_Hash_Table:
+		fmt.sbprint(sb, "{ ")
+		i := 0
+		for key, value in data {
+			fmt.sbprintf(sb, "%s:", key)
+			obj_inspect(value, sb)
+			if i < len(data) - 1 do fmt.sbprint(sb, ", ")
+			i += 1
+		}
+		fmt.sbprint(sb, " }")
 	}
 }

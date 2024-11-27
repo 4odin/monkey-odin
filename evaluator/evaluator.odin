@@ -10,6 +10,7 @@ import ma "../ast"
 @(private = "file")
 Dap_Item :: union {
 	Obj_Array,
+	Obj_Hash_Table,
 }
 
 @(private = "file")
@@ -59,7 +60,13 @@ evaluator :: proc() -> Evaluator {
 @(private = "file")
 register_in_pool :: proc(e: ^Evaluator, $T: typeid, reserved := 0) -> ^T {
 	if reserved == 0 do append(&e._dyn_arr_pool, make(T))
-	else do append(&e._dyn_arr_pool, make(T, reserved, reserved))
+	else {
+		when T == Obj_Array {
+			append(&e._dyn_arr_pool, make(T, 0, reserved))
+		} else {
+			append(&e._dyn_arr_pool, make(T, reserved))
+		}
+	}
 
 	return &e._dyn_arr_pool[len(e._dyn_arr_pool) - 1].(T)
 }
@@ -101,6 +108,9 @@ evaluator_free :: proc(e: ^Evaluator) {
 	for arr in e._dyn_arr_pool {
 		switch item in arr {
 		case Obj_Array:
+			delete(item)
+
+		case Obj_Hash_Table:
 			delete(item)
 		}
 	}
@@ -462,6 +472,30 @@ apply_function :: proc(
 }
 
 @(private = "file")
+eval_hash_table_literal :: proc(
+	e: ^Evaluator,
+	node: ma.Node_Hash_Table_Literal,
+	current_env: ^Environment,
+) -> (
+	Object,
+	bool,
+) {
+	ht := register_in_pool(e, Obj_Hash_Table)
+
+	for key_node, value_node in node {
+		key, key_is_valid := eval(e, key_node, current_env)
+		if !key_is_valid do return key, false
+
+		value, value_is_valid := eval(e, value_node, current_env)
+		if !value_is_valid do return value, false
+
+		ht[(to_object_base(key)).(string)] = to_object_base(value)
+	}
+
+	return Object_Base(ht), true
+}
+
+@(private = "file")
 eval_array_index_expression :: proc(
 	e: ^Evaluator,
 	array: ^Obj_Array,
@@ -480,6 +514,24 @@ eval_array_index_expression :: proc(
 }
 
 @(private = "file")
+eval_hash_table_index_expression :: proc(
+	e: ^Evaluator,
+	ht: ^Obj_Hash_Table,
+	key: string,
+) -> (
+	Object_Base,
+	bool,
+) {
+	value, ok := ht[key]
+
+	if !ok {
+		return new_error(e, "key '%s' does not exists", key), false
+	}
+
+	return value, true
+}
+
+@(private = "file")
 eval_index_expression :: proc(
 	e: ^Evaluator,
 	operand: Object_Base,
@@ -490,6 +542,10 @@ eval_index_expression :: proc(
 ) {
 	if obj_type(operand) == ^Obj_Array && obj_type(index) == int {
 		return eval_array_index_expression(e, operand.(^Obj_Array), index.(int))
+	}
+
+	if obj_type(operand) == ^Obj_Hash_Table && obj_type(index) == string {
+		return eval_hash_table_index_expression(e, operand.(^Obj_Hash_Table), index.(string))
 	}
 
 	return new_error(e, "index operator does not support: '%v'", obj_type(operand)), false
@@ -726,6 +782,9 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		if !ok do return Object_Base(elements), false
 
 		return Object_Base(elements), true
+
+	case ma.Node_Hash_Table_Literal:
+		return eval_hash_table_literal(e, data, current_env)
 	}
 
 	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ma.ast_type(node))), false

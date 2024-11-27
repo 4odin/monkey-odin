@@ -468,37 +468,6 @@ test_eval_builtin_functions :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_eval_array_index_expression :: proc(t: ^testing.T) {
-	tests := [?]struct {
-		input:    string,
-		expected: int,
-	} {
-		{"[1, 2, 3][0]", 1},
-		{"[1, 2, 3][1]", 2},
-		{"[1, 2, 3][2]", 3},
-		{"let i = 0; [1][i]", 1},
-		{"[1, 2, 3][1 + 1];", 3},
-		{"let my_arr = [1, 2, 3]; my_arr[2]", 3},
-		{"let my_arr = [1, 2, 3]; my_arr[0] + my_arr[1] + my_arr[2];", 6},
-		{"let my_arr = [1, 2, 3]; let i = my_arr[0]; my_arr[i]", 2},
-	}
-
-	for test_case, i in tests {
-		evaluated, ok := evalulation_is_valid(test_case.input)
-		if !ok {
-			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
-			continue
-		}
-
-		if !integer_object_is_valid(evaluated, test_case.expected) {
-			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
-		}
-	}
-}
-
-@(test)
 test_eval_array_literals :: proc(t: ^testing.T) {
 	input := "[1, 2 * 2, 3 + 3]"
 
@@ -543,6 +512,118 @@ test_eval_array_literals :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_eval_hash_literals :: proc(t: ^testing.T) {
+	input := `
+    {
+        "one": 10 - 9,
+        "two": 1 + 1,
+        "three": 6 / 2,
+    }`
+
+
+	evaluated, e, ok := evaluate_is_valid_get_evaluator(input)
+	defer if ok {
+		e->free()
+		free(e)
+	}
+
+	if !ok {
+		testing.fail(t)
+		return
+	}
+
+	ht, is_hash_table := evaluated.(^me.Obj_Hash_Table)
+	if !is_hash_table {
+		log.errorf("expected hash table object but got '%v'", me.obj_type(evaluated))
+		testing.fail(t)
+		return
+	}
+
+	expected := map[string]int {
+		"one"   = 1,
+		"two"   = 2,
+		"three" = 3,
+	}
+	defer delete(expected)
+
+	if len(ht) != len(expected) {
+		log.errorf(
+			"Hash table has wrong number of pairs, expected='%d', got='%d'",
+			len(expected),
+			len(ht),
+		)
+		testing.fail(t)
+		return
+	}
+
+	for expected_key, expected_value in expected {
+		value, key_exists := ht[expected_key]
+		if !key_exists {
+			log.errorf("key '%v' expected but does not exist", expected_key)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(value, expected_value) {
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_eval_array_index_expression :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	} {
+		{"[1, 2, 3][0]", 1},
+		{"[1, 2, 3][1]", 2},
+		{"[1, 2, 3][2]", 3},
+		{"let i = 0; [1][i]", 1},
+		{"[1, 2, 3][1 + 1];", 3},
+		{"let my_arr = [1, 2, 3]; my_arr[2]", 3},
+		{"let my_arr = [1, 2, 3]; my_arr[0] + my_arr[1] + my_arr[2];", 6},
+		{"let my_arr = [1, 2, 3]; let i = my_arr[0]; my_arr[i]", 2},
+	}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
+test_eval_hash_table_index_expression :: proc(t: ^testing.T) {
+	tests := [?]struct {
+		input:    string,
+		expected: int,
+	}{{`{"foo": 5}["foo"]`, 5}, {`let key = "foo"; {"foo": 5}[key]`, 5}}
+
+	for test_case, i in tests {
+		evaluated, ok := evalulation_is_valid(test_case.input)
+		if !ok {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+			continue
+		}
+
+		if !integer_object_is_valid(evaluated, test_case.expected) {
+			log.errorf("test[%d] has failed", i)
+			testing.fail(t)
+		}
+	}
+}
+
+@(test)
 test_eval_errors :: proc(t: ^testing.T) {
 	inputs := [?]string {
 		"5 + true;",
@@ -568,6 +649,9 @@ test_eval_errors :: proc(t: ^testing.T) {
 		`len("one", "two")`, // wrong number of arguments for builtin function
 		"[1, 2, 3][3]", // index out of boundary
 		"[1, 2, 3][-1]", // index out of boundary
+		`{"foo": 5}["bar"]`, // key does not exists
+		`{}["bar"]`, // key does not exists
+		`{}[1]`, // key is not hashable
 	}
 
 
