@@ -8,10 +8,12 @@ import st "core:strings"
 _ :: mem
 _ :: vmem
 
-// Struct to be used for subtype-polymorphism when type has some internal memories 
-// which cannot or should not be mixed with context.temp_allocator or other memory pools
-// it has internal growing arena, a dynamic array that can hold growing element such as
-// other dynamic arrays and maps
+// Struct to be used for subtyping other structs when the target type has needs internal
+// memories which cannot or should not be mixed with context.temp_allocator or other memory pools
+// it has internal growing arena, 
+//
+// a dynamic array that can hold growing element such as other dynamic arrays and maps
+//
 // also a string builder that maps its memory to internal pool
 Mem_Manager :: struct($Union_Element: typeid) where intrinsics.type_is_union(Union_Element) {
 	// memory
@@ -32,8 +34,10 @@ Mem_Manager :: struct($Union_Element: typeid) where intrinsics.type_is_union(Uni
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
 	mem_free:               proc(m: ^Mem_Manager(Union_Element)),
-	mem_dyn_arr_el_free:    proc(dyn_pool: [dynamic]Union_Element),
 	mem_is_freed:           proc(m: ^Mem_Manager(Union_Element)) -> (bool, uint, uint),
+
+	// before deleting the dynamic array pool, you need to use it to delete its elements individually
+	mem_dyn_arr_el_free:    proc(dyn_pool: [dynamic]Union_Element),
 }
 
 mem_manager :: proc(
@@ -102,6 +106,10 @@ mem_manager :: proc(
 	}
 }
 
+// Must be used to register dynamic arrays, maps and allocated slices or any distinct
+// aliases for them in the pool
+//
+// Note: &<your subtipe>.managed must be sent
 register_in_pool :: proc(
 	m: ^Mem_Manager($U),
 	$T: typeid,
