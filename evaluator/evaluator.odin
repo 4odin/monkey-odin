@@ -2,10 +2,10 @@ package monkey_evaluator
 
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import st "core:strings"
 
 import ma "../ast"
+import "../utils"
 
 @(private = "file")
 Dap_Item :: union {
@@ -14,20 +14,9 @@ Dap_Item :: union {
 }
 
 @(private = "file")
-Dynamic_Arr_Pool :: distinct [dynamic]Dap_Item
-
-@(private = "file")
 NULL :: Obj_Null{}
 
 Evaluator :: struct {
-	// memory
-	_arena:        vmem.Arena,
-	_pool:         mem.Allocator,
-	_dyn_arr_pool: Dynamic_Arr_Pool,
-
-	// internal builders
-	_sb:           st.Builder,
-
 	// data storage
 	_env:          Environment,
 
@@ -45,7 +34,9 @@ Evaluator :: struct {
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	) -> mem.Allocator_Error,
 	free:          proc(e: ^Evaluator),
-	is_freed:      proc(e: ^Evaluator) -> (bool, uint, uint),
+
+	// Managed
+	using managed: utils.Mem_Manager(Dap_Item),
 }
 
 evaluator :: proc() -> Evaluator {
@@ -53,35 +44,29 @@ evaluator :: proc() -> Evaluator {
 		eval = eval_program_statements,
 		config = evaluator_config,
 		free = evaluator_free,
-		is_freed = evaluator_is_freed,
+		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
+			for element in dyn_pool {
+				switch kind in element {
+				case Obj_Array:
+					delete(kind)
+
+				case Obj_Hash_Table:
+					delete(kind)
+				}
+			}}),
 	}
 }
 
-@(private = "file")
-register_in_pool :: proc(e: ^Evaluator, $T: typeid, reserved := 0) -> ^T {
-	if reserved == 0 do append(&e._dyn_arr_pool, make(T))
-	else {
-		when T == Obj_Array {
-			append(&e._dyn_arr_pool, make(T, 0, reserved))
-		} else {
-			append(&e._dyn_arr_pool, make(T, reserved))
-		}
-	}
-
-	return &e._dyn_arr_pool[len(e._dyn_arr_pool) - 1].(T)
-}
+// ***************************************************************************************
+// PRIVATE TYPES AND PROCEDURES
+// ***************************************************************************************
 
 @(private = "file")
 evaluator_config :: proc(
 	e: ^Evaluator,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 ) -> mem.Allocator_Error {
-	err := vmem.arena_init_growing(&e._arena, pool_reserved_block_size)
-	if err == .None {
-		e._pool = vmem.arena_allocator(&e._arena)
-		e._sb = st.builder_make(e._pool)
-		e._dyn_arr_pool = make(Dynamic_Arr_Pool, e._pool)
-	}
+	err := e->mem_config(pool_reserved_block_size)
 
 	e._env = environment()
 
@@ -95,40 +80,8 @@ evaluator_pool_total_used :: proc(e: ^Evaluator) -> uint {
 
 @(private = "file")
 evaluator_free :: proc(e: ^Evaluator) {
-	defer {
-		vmem.arena_destroy(&e._arena)
-		e._arena = {}
-
-		e._env->free()
-
-		delete(e._dyn_arr_pool)
-		e._dyn_arr_pool = {}
-	}
-
-	for arr in e._dyn_arr_pool {
-		switch item in arr {
-		case Obj_Array:
-			delete(item)
-
-		case Obj_Hash_Table:
-			delete(item)
-		}
-	}
-}
-
-@(private = "file")
-evaluator_is_freed :: proc(
-	e: ^Evaluator,
-) -> (
-	answer: bool,
-	arena_used: uint,
-	dyn_arr_pool_unremoved: uint,
-) {
-	answer = e._pool == {} || cap(e._dyn_arr_pool) == 0
-	arena_used = e._arena.total_used
-	dyn_arr_pool_unremoved = cap(e._dyn_arr_pool)
-
-	return
+	e->mem_free()
+	e._env->free()
 }
 
 @(private = "file")
@@ -412,7 +365,7 @@ eval_array_of_expressions_registered :: proc(
 	^Obj_Array,
 	bool,
 ) {
-	args := register_in_pool(e, Obj_Array)
+	args := utils.register_in_pool(&e.managed, Obj_Array)
 
 	for expr in expressions {
 		evaluated, ok := eval(e, expr, current_env)
@@ -480,7 +433,7 @@ eval_hash_table_literal :: proc(
 	Object,
 	bool,
 ) {
-	ht := register_in_pool(e, Obj_Hash_Table)
+	ht := utils.register_in_pool(&e.managed, Obj_Hash_Table)
 
 	for key_node, value_node in node {
 		key, key_is_valid := eval(e, key_node, current_env)
@@ -655,7 +608,7 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 				}
 
 				if len(arr) > 0 {
-					new_arr := register_in_pool(e, Obj_Array, len(arr) - 1)
+					new_arr := utils.register_in_pool(&e.managed, Obj_Array, len(arr) - 1)
 					copy(new_arr[:], arr[1:])
 
 					return new_arr, true

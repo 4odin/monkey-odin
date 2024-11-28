@@ -7,19 +7,10 @@ import mv "../vm"
 import "core:testing"
 
 concat_instructions :: proc(s: []mv.Instructions) -> mv.Instructions {
-	length := 0
-	for ins in s {
-		length += len(ins)
-	}
+	out := make(mv.Instructions, 0, context.temp_allocator)
 
-	out := make(mv.Instructions, length, context.temp_allocator)
-
-	i := 0
 	for ins_slice in s {
-		for ins in ins_slice {
-			out[i] = ins
-			i += 1
-		}
+		append(&out, ..ins_slice[:])
 	}
 
 	return out
@@ -28,10 +19,10 @@ concat_instructions :: proc(s: []mv.Instructions) -> mv.Instructions {
 @(test)
 test_code_make :: proc(t: ^testing.T) {
 	tests := [?]struct {
-		op:       mv.Opcodes,
+		op:       mv.Opcode,
 		operands: []int,
 		expected: []byte,
-	}{{.Constant, {65534}, {u8(mv.Opcodes.Constant), 255, 254}}}
+	}{{.Constant, {65534}, {u8(mv.Opcode.Constant), 255, 254}}}
 
 	defer free_all(context.temp_allocator)
 
@@ -102,7 +93,7 @@ test_instructions_string :: proc(t: ^testing.T) {
 @(test)
 test_read_operands :: proc(t: ^testing.T) {
 	tests := []struct {
-		op:         mv.Opcodes,
+		op:         mv.Opcode,
 		operands:   []int,
 		bytes_read: int,
 	}{{.Constant, {65535}, 2}}

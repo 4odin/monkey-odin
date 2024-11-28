@@ -78,7 +78,7 @@ main :: proc() {
 	when ODIN_DEBUG {
 		// before context allocators, report on parser and other virtual memory based instances
 		defer {
-			if ok, arena, dyn_arr_pool := parser->is_freed(); !ok {
+			if ok, arena, dyn_arr_pool := parser->mem_is_freed(); !ok {
 				fmt.eprintfln(
 					"parser has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
 					arena,
@@ -86,7 +86,7 @@ main :: proc() {
 				)
 			}
 
-			if ok, arena, dyn_arr_pool := evaluator->is_freed(); !ok {
+			if ok, arena, dyn_arr_pool := evaluator->mem_is_freed(); !ok {
 				fmt.eprintfln(
 					"evaluator has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
 					arena,
@@ -106,7 +106,7 @@ main :: proc() {
 	defer free_all(context.temp_allocator)
 
 	parser->config()
-	defer parser->free()
+	defer parser->mem_free()
 
 	evaluator->config()
 	defer evaluator->free()
@@ -127,7 +127,7 @@ main :: proc() {
 
 		program := parser->parse(input)
 		{
-			defer parser->free()
+			defer parser->mem_free()
 
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)

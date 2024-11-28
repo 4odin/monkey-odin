@@ -2,12 +2,12 @@ package monkey_parser
 
 import "core:fmt"
 import "core:mem"
-import vmem "core:mem/virtual"
 import "core:strconv"
 
 import st "core:strings"
 
 import ma "../ast"
+import "../utils"
 
 @(private = "file")
 Dap_Item :: union {
@@ -18,32 +18,23 @@ Dap_Item :: union {
 	ma.Node_Hash_Table_Literal,
 }
 
-@(private = "file")
-Dynamic_Arr_Pool :: distinct [dynamic]Dap_Item
-
 Parser :: struct {
-	l:                      Lexer,
-	cur_token:              Token,
-	peek_token:             Token,
-
-	// memory
-	errors:                 [dynamic]string,
-	_arena:                 vmem.Arena,
-	_arena_reserved:        uint,
-	_pool:                  mem.Allocator,
-	_dyn_arr_pool:          Dynamic_Arr_Pool,
-	_dyn_arr_pool_reserved: uint,
+	l:             Lexer,
+	cur_token:     Token,
+	peek_token:    Token,
+	errors:        [dynamic]string,
 
 	// methods
-	config:                 proc(
+	config:        proc(
 		p: ^Parser,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	parse:                  proc(p: ^Parser, input: string) -> ma.Node_Program,
-	is_freed:               proc(p: ^Parser) -> (bool, uint, uint),
-	free:                   proc(p: ^Parser),
-	clear_errors:           proc(p: ^Parser),
+	parse:         proc(p: ^Parser, input: string) -> ma.Node_Program,
+	clear_errors:  proc(p: ^Parser),
+
+	// Managed
+	using managed: utils.Mem_Manager(Dap_Item),
 }
 
 parser :: proc() -> Parser {
@@ -51,9 +42,26 @@ parser :: proc() -> Parser {
 		l = lexer(),
 		config = parser_config,
 		parse = parse_program,
-		is_freed = parser_is_freed,
-		free = parser_free,
 		clear_errors = parser_clear_errors,
+		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
+			for element in dyn_pool {
+				switch kind in element {
+				case ma.Node_Program:
+					delete(kind)
+
+				case ma.Node_Block_Expression:
+					delete(kind)
+
+				case [dynamic]ma.Node_Identifier:
+					delete(kind)
+
+				case [dynamic]ma.Node:
+					delete(kind)
+
+				case ma.Node_Hash_Table_Literal:
+					delete(kind)
+				}
+			}}),
 	}
 }
 
@@ -163,90 +171,16 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
-parser_init_pools :: proc(p: ^Parser) -> mem.Allocator_Error {
-	err := vmem.arena_init_growing(&p._arena, p._arena_reserved)
-	if err == .None do p._pool = vmem.arena_allocator(&p._arena)
-
-	if p._dyn_arr_pool_reserved > 0 {
-		p._dyn_arr_pool = make(Dynamic_Arr_Pool, 0, p._dyn_arr_pool_reserved, p._pool)
-	}
-
-	return err
-}
-
-@(private = "file")
-register_dyn_arr_in_pool :: proc(p: ^Parser, $T: typeid) -> ^T {
-	append(&p._dyn_arr_pool, make(T))
-
-	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(T)
-}
-
-@(private = "file")
-register_hash_table_in_pool :: proc(p: ^Parser) -> ^ma.Node_Hash_Table_Literal {
-	append(&p._dyn_arr_pool, make(ma.Node_Hash_Table_Literal))
-
-	return &p._dyn_arr_pool[len(p._dyn_arr_pool) - 1].(ma.Node_Hash_Table_Literal)
-}
-
-@(private = "file")
 parser_config :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
-	p._arena_reserved = pool_reserved_block_size
-	p._dyn_arr_pool_reserved = dyn_arr_reserved
-
-	err := parser_init_pools(p)
+	err := p->mem_config(pool_reserved_block_size, dyn_arr_reserved)
 
 	p.errors.allocator = p._pool
 
 	return err
-}
-
-@(private = "file")
-parser_free :: proc(p: ^Parser) {
-	defer {
-		vmem.arena_destroy(&p._arena)
-		p._arena = {}
-
-		delete(p._dyn_arr_pool)
-		p._dyn_arr_pool = {}
-	}
-
-	for arr in p._dyn_arr_pool {
-		switch item in arr {
-		case ma.Node_Program:
-			delete(item)
-
-		case ma.Node_Block_Expression:
-			delete(item)
-
-		case [dynamic]ma.Node_Identifier:
-			delete(item)
-
-		case [dynamic]ma.Node:
-			delete(item)
-
-		case ma.Node_Hash_Table_Literal:
-			delete(item)
-		}
-	}
-}
-
-@(private = "file")
-parser_is_freed :: proc(
-	p: ^Parser,
-) -> (
-	answer: bool,
-	arena_used: uint,
-	dyn_arr_pool_unremoved: uint,
-) {
-	answer = p._pool == {} || cap(p._dyn_arr_pool) == 0
-	arena_used = p._arena.total_used
-	dyn_arr_pool_unremoved = cap(p._dyn_arr_pool)
-
-	return
 }
 
 @(private = "file")
@@ -299,7 +233,7 @@ parse_array_literal :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_hash_table_literal :: proc(p: ^Parser) -> ma.Node {
-	result := register_hash_table_in_pool(p)
+	result := utils.register_in_pool(&p.managed, ma.Node_Hash_Table_Literal)
 
 	for !peek_token_is(p, .Right_Brace) {
 		next_token(p)
@@ -401,7 +335,7 @@ parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
-	block := register_dyn_arr_in_pool(p, ma.Node_Block_Expression)
+	block := utils.register_in_pool(&p.managed, ma.Node_Block_Expression)
 
 	next_token(p)
 
@@ -445,7 +379,7 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
-	identifiers := register_dyn_arr_in_pool(p, [dynamic]ma.Node_Identifier)
+	identifiers := utils.register_in_pool(&p.managed, [dynamic]ma.Node_Identifier)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -482,7 +416,7 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 
 @(private = "file")
 parse_expression_list :: proc(p: ^Parser, end: Token_Type) -> ([dynamic]ma.Node, bool) {
-	args := register_dyn_arr_in_pool(p, [dynamic]ma.Node)
+	args := utils.register_in_pool(&p.managed, [dynamic]ma.Node)
 
 	if peek_token_is(p, end) {
 		next_token(p)
@@ -589,9 +523,9 @@ parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
 	next_token(p)
 	next_token(p)
 
-	if ok, _, _ := p->is_freed(); ok do parser_init_pools(p)
+	if ok, _, _ := p->mem_is_freed(); ok do p->mem_init()
 
-	program := register_dyn_arr_in_pool(p, ma.Node_Program)
+	program := utils.register_in_pool(&p.managed, ma.Node_Program)
 
 	for p.cur_token.type != .EOF {
 		if stmt := parse_statement(p); stmt != nil {

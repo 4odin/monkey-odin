@@ -21,7 +21,7 @@ evaluate_is_valid_get_evaluator :: proc(
 ) {
 	p := mp.parser()
 	p->config()
-	defer p->free()
+	defer p->mem_free()
 
 	program := p->parse(input)
 	if len(p.errors) > 0 {

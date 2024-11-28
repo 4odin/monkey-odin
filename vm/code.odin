@@ -4,10 +4,9 @@ import "core:encoding/endian"
 import "core:fmt"
 import st "core:strings"
 
-Instructions :: []byte
-Opcode :: byte
+Instructions :: distinct [dynamic]byte
 
-Opcodes :: enum Opcode {
+Opcode :: enum byte {
 	Constant,
 }
 
@@ -16,12 +15,12 @@ Definition :: struct {
 	operand_widths: []int,
 }
 
-definitions := [Opcodes]Definition {
+definitions := [Opcode]Definition {
 	.Constant = {"OpConstant", {2}},
 }
 
-lookup :: proc(op: Opcodes) -> (Definition, bool) {
-	def := definitions[Opcodes(op)]
+lookup :: proc(op: Opcode) -> (Definition, bool) {
+	def := definitions[Opcode(op)]
 
 	if def.name == "" do return {}, false
 
@@ -30,7 +29,7 @@ lookup :: proc(op: Opcodes) -> (Definition, bool) {
 
 instruction_make :: proc(
 	allocator := context.allocator,
-	op: Opcodes,
+	op: Opcode,
 	operands: ..int,
 ) -> Instructions {
 	def, ok := lookup(op)
@@ -41,7 +40,7 @@ instruction_make :: proc(
 		inst_len += w
 	}
 
-	instruction := make(Instructions, inst_len, allocator)
+	instruction := make(Instructions, inst_len, inst_len, allocator)
 	instruction[0] = byte(op)
 
 	offset := 1
@@ -88,7 +87,7 @@ instructions_to_string :: proc(
 
 	i := 0
 	for i < len(instructions) {
-		def, ok := lookup(Opcodes(instructions[i]))
+		def, ok := lookup(Opcode(instructions[i]))
 		if !ok {
 			fmt.sbprintfln(&sb, "ERROR: instruction is not defined: %v", instructions[i])
 			continue
@@ -108,7 +107,7 @@ instructions_to_string :: proc(
 
 read_operands :: proc(
 	def: Definition,
-	ins: Instructions,
+	ins: []byte,
 	allocator := context.allocator,
 ) -> (
 	[]int,

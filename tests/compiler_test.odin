@@ -53,7 +53,7 @@ test_constants :: proc(expected: []any, actual: []me.Object_Base) -> (err: strin
 	return ""
 }
 
-test_instructions :: proc(expected: []mv.Instructions, actual: mv.Instructions) -> (err: string) {
+test_instructions :: proc(expected: []mv.Instructions, actual: []byte) -> (err: string) {
 	concatenated := concat_instructions(expected)
 
 	if (len(actual) != len(concatenated)) {
@@ -81,7 +81,7 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 		{
 			p := mp.parser()
 			p->config()
-			defer p->free()
+			defer p->mem_free()
 
 			program := p->parse(test_case.input)
 			if len(p.errors) > 0 {
@@ -92,6 +92,9 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 			}
 
 			compiler := mv.compiler()
+			compiler->config()
+			defer compiler->mem_free()
+
 			err := compiler->compile(program)
 			if err != "" {
 				log.errorf("test[%d] has failed, compiler has error: %s", i, err)
@@ -101,7 +104,7 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 
 			bytecode := compiler->bytecode()
 
-			err = test_instructions(test_case.expected_instructions[:], bytecode.instructions[:])
+			err = test_instructions(test_case.expected_instructions[:], bytecode.instructions)
 			if err != "" {
 				log.errorf("test[%d] has failed, test instructions has failed with: %s", i, err)
 				testing.fail(t)
@@ -126,7 +129,7 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			{1, 2},
 			{
 				mv.instruction_make(context.temp_allocator, .Constant, 0),
-				mv.instruction_make(context.temp_allocator, .Constant, 0),
+				mv.instruction_make(context.temp_allocator, .Constant, 1),
 			},
 		},
 	}
