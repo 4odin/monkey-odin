@@ -60,8 +60,7 @@ _to_object_base_ptr :: proc(obj: ^Object) -> Object_Base {
 		return Object_Base(data)
 	}
 
-	// unreachable
-	return Obj_Null{}
+	unreachable()
 }
 
 obj_is_return :: proc {

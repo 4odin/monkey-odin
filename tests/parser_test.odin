@@ -96,8 +96,7 @@ literal_value_is_valid :: proc(lit: ^ma.Node, expected: Literal) -> bool {
 		return boolean_is_valid(lit, v)
 	}
 
-	// unreachable
-	return false
+	unreachable()
 }
 
 @(test)
