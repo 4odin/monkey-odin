@@ -4,22 +4,20 @@ import "core:fmt"
 import "core:log"
 import "core:reflect"
 
-import me "../evaluator"
-import mp "../parser"
-import mv "../vm"
+import m "../monkey"
 
 import "core:testing"
 
 Compiler_Test_Case :: struct {
 	input:                 string,
 	expected_constants:    []any,
-	expected_instructions: []mv.Instructions,
+	expected_instructions: []m.Instructions,
 }
 
-test_integer_object :: proc(expected: int, actual: me.Object_Base) -> (err: string) {
+test_integer_object :: proc(expected: int, actual: m.Object_Base) -> (err: string) {
 	result, ok := actual.(int)
 	if !ok {
-		return fmt.tprintf("object is not integer. got='%v'", me.obj_type(actual))
+		return fmt.tprintf("object is not integer. got='%v'", m.obj_type(actual))
 	}
 
 	if result != expected {
@@ -29,7 +27,7 @@ test_integer_object :: proc(expected: int, actual: me.Object_Base) -> (err: stri
 	return ""
 }
 
-test_constants :: proc(expected: []any, actual: []me.Object_Base) -> (err: string) {
+test_constants :: proc(expected: []any, actual: []m.Object_Base) -> (err: string) {
 	if len(expected) != len(actual) {
 		return fmt.tprintf(
 			"wrong number of constants. wants='%d', got='%d'",
@@ -53,7 +51,7 @@ test_constants :: proc(expected: []any, actual: []me.Object_Base) -> (err: strin
 	return ""
 }
 
-test_instructions :: proc(expected: []mv.Instructions, actual: []byte) -> (err: string) {
+test_instructions :: proc(expected: []m.Instructions, actual: []byte) -> (err: string) {
 	concatenated := concat_instructions(expected)
 
 	if (len(actual) != len(concatenated)) {
@@ -79,7 +77,7 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 
 	for test_case, i in tests {
 		{
-			p := mp.parser()
+			p := m.parser()
 			p->config()
 			defer p->mem_free()
 
@@ -91,7 +89,7 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 				continue
 			}
 
-			compiler := mv.compiler()
+			compiler := m.compiler()
 			compiler->config()
 			defer compiler->mem_free()
 
@@ -128,8 +126,8 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1 + 2",
 			{1, 2},
 			{
-				mv.instruction_make(context.temp_allocator, .Constant, 0),
-				mv.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
 			},
 		},
 	}

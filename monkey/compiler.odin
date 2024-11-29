@@ -1,11 +1,7 @@
-package monkey_vm
+package monkey_odin
 
-// todo:: import st "core:strings"
 import "core:fmt"
 import "core:mem"
-
-import ma "../ast"
-import me "../evaluator"
 
 import "../utils"
 
@@ -14,17 +10,17 @@ _ :: fmt
 @(private = "file")
 Dap_Item :: union {
 	Instructions,
-	[dynamic]me.Object_Base,
+	[dynamic]Object_Base,
 }
 
 Bytecode :: struct {
 	instructions: []byte,
-	constants:    []me.Object_Base,
+	constants:    []Object_Base,
 }
 
 Compiler :: struct {
 	instructions:  ^Instructions,
-	constants:     ^[dynamic]me.Object_Base,
+	constants:     ^[dynamic]Object_Base,
 
 	// methods
 	config:        proc(
@@ -32,7 +28,7 @@ Compiler :: struct {
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	compile:       proc(c: ^Compiler, ast: ma.Node) -> (err: string),
+	compile:       proc(c: ^Compiler, ast: Node) -> (err: string),
 	bytecode:      proc(c: ^Compiler) -> Bytecode,
 
 	// Managed
@@ -50,7 +46,7 @@ compiler :: proc(allocator := context.allocator) -> Compiler {
 				case Instructions:
 					delete(kind)
 
-				case [dynamic]me.Object_Base:
+				case [dynamic]Object_Base:
 					delete(kind)
 				}
 			}
@@ -71,7 +67,7 @@ compiler_config :: proc(
 	err := c->mem_config(pool_reserved_block_size, dyn_arr_reserved)
 
 	c.instructions = utils.register_in_pool(&c.managed, Instructions)
-	c.constants = utils.register_in_pool(&c.managed, [dynamic]me.Object_Base)
+	c.constants = utils.register_in_pool(&c.managed, [dynamic]Object_Base)
 
 	return err
 }
@@ -93,22 +89,22 @@ emit :: proc(c: ^Compiler, op: Opcode, operands: ..int) -> int {
 }
 
 @(private = "file")
-add_constant :: proc(c: ^Compiler, obj: me.Object_Base) -> int {
+add_constant :: proc(c: ^Compiler, obj: Object_Base) -> int {
 	append(c.constants, obj)
 	return len(c.constants) - 1
 }
 
 @(private = "file")
-compiler_compile :: proc(c: ^Compiler, ast: ma.Node) -> (err: string) {
+compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 	err = ""
 
 	#partial switch data in ast {
-	case ma.Node_Program:
+	case Node_Program:
 		for s in data {
 			if err = c->compile(s); err != "" do return
 		}
 
-	case ma.Node_Infix_Expression:
+	case Node_Infix_Expression:
 		if err = c->compile(data.left^); err != "" do return
 		if err = c->compile(data.right^); err != "" do return
 

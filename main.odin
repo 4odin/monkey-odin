@@ -1,13 +1,11 @@
-package monkey_odin
+package monkey_odin_repl
 
 import "core:fmt"
 import "core:mem"
 import "core:os"
 import st "core:strings"
 
-import ma "./ast"
-import me "./evaluator"
-import mp "./parser"
+import "./monkey"
 import u "./utils"
 
 _ :: mem
@@ -73,8 +71,8 @@ main :: proc() {
 		}
 	}
 
-	parser := mp.parser()
-	evaluator := me.evaluator()
+	parser := monkey.parser()
+	evaluator := monkey.evaluator()
 	when ODIN_DEBUG {
 		// before context allocators, report on parser and other virtual memory based instances
 		defer {
@@ -136,7 +134,7 @@ main :: proc() {
 			}
 
 			st.builder_reset(&sb)
-			ma.ast_to_string(program, &sb)
+			monkey.ast_to_string(program, &sb)
 			fmt.printfln("Ast: %v", st.to_string(sb))
 
 			evaluated, ok := evaluator->eval(program, context.temp_allocator)
@@ -147,7 +145,7 @@ main :: proc() {
 
 			if evaluated != nil {
 				st.builder_reset(&sb)
-				me.obj_inspect(evaluated, &sb)
+				monkey.obj_inspect(evaluated, &sb)
 
 				fmt.printfln("Result: %v", st.to_string(sb))
 			}

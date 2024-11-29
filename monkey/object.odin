@@ -1,15 +1,13 @@
-package monkey_evaluator
+package monkey_odin
 
 import "core:fmt"
 import "core:reflect"
 import st "core:strings"
 
-import ma "../ast"
-
 Obj_Null :: struct {}
 Obj_Function :: struct {
-	parameters: [dynamic]ma.Node_Identifier,
-	body:       ma.Node_Block_Expression,
+	parameters: [dynamic]Node_Identifier,
+	body:       Node_Block_Expression,
 	env:        ^Environment,
 }
 

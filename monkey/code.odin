@@ -1,4 +1,4 @@
-package monkey_vm
+package monkey_odin
 
 import "core:encoding/endian"
 import "core:fmt"

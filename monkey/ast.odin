@@ -1,4 +1,4 @@
-package monkey_ast
+package monkey_odin
 
 import "core:fmt"
 import "core:mem"

@@ -1,7 +1,6 @@
 package monkey_tests
 
-import ma "../ast"
-import mp "../parser"
+import m "../monkey"
 
 import "core:log"
 import st "core:strings"
@@ -13,7 +12,7 @@ Literal :: union {
 	bool,
 }
 
-parser_has_error :: proc(p: mp.Parser) -> bool {
+parser_has_error :: proc(p: m.Parser) -> bool {
 	if len(p.errors) == 0 do return false
 
 	log.errorf("parser has %d errors", len(p.errors))
@@ -24,10 +23,10 @@ parser_has_error :: proc(p: mp.Parser) -> bool {
 	return true
 }
 
-stmt_is_let :: proc(s: ma.Node, name: string, expected_value: Literal) -> bool {
-	let_stmt, ok := s.(ma.Node_Let_Statement)
+stmt_is_let :: proc(s: m.Node, name: string, expected_value: Literal) -> bool {
+	let_stmt, ok := s.(m.Node_Let_Statement)
 	if !ok {
-		log.errorf("s is not a let statement. got='%v'", ma.ast_type(s))
+		log.errorf("s is not a let statement. got='%v'", m.ast_type(s))
 		return false
 	}
 
@@ -39,10 +38,10 @@ stmt_is_let :: proc(s: ma.Node, name: string, expected_value: Literal) -> bool {
 	return literal_value_is_valid(let_stmt.value, expected_value)
 }
 
-integer_literal_is_valid :: proc(il: ^ma.Node, expected_value: int) -> bool {
+integer_literal_is_valid :: proc(il: ^m.Node, expected_value: int) -> bool {
 	val, ok := il.(int)
 	if !ok {
-		log.errorf("il is not 'int', got='%v'", ma.ast_type(il))
+		log.errorf("il is not 'int', got='%v'", m.ast_type(il))
 		return false
 	}
 
@@ -54,10 +53,10 @@ integer_literal_is_valid :: proc(il: ^ma.Node, expected_value: int) -> bool {
 	return true
 }
 
-identifier_is_valid :: proc(expr: ^ma.Node, expected_value: string) -> bool {
-	ident, ok := expr.(ma.Node_Identifier)
+identifier_is_valid :: proc(expr: ^m.Node, expected_value: string) -> bool {
+	ident, ok := expr.(m.Node_Identifier)
 	if !ok {
-		log.errorf("expression is not Node_Identifier, got='%v'", ma.ast_type(expr))
+		log.errorf("expression is not Node_Identifier, got='%v'", m.ast_type(expr))
 		return false
 	}
 
@@ -69,10 +68,10 @@ identifier_is_valid :: proc(expr: ^ma.Node, expected_value: string) -> bool {
 	return true
 }
 
-boolean_is_valid :: proc(b: ^ma.Node, expected_value: bool) -> bool {
+boolean_is_valid :: proc(b: ^m.Node, expected_value: bool) -> bool {
 	b_lit, ok := b.(bool)
 	if !ok {
-		log.errorf("expression is not boolean, got='%v'", ma.ast_type(b))
+		log.errorf("expression is not boolean, got='%v'", m.ast_type(b))
 		return false
 	}
 
@@ -84,7 +83,7 @@ boolean_is_valid :: proc(b: ^ma.Node, expected_value: bool) -> bool {
 	return true
 }
 
-literal_value_is_valid :: proc(lit: ^ma.Node, expected: Literal) -> bool {
+literal_value_is_valid :: proc(lit: ^m.Node, expected: Literal) -> bool {
 	switch v in expected {
 	case int:
 		return integer_literal_is_valid(lit, v)
@@ -115,7 +114,7 @@ let foobar = y;
 	}{{"x", 5}, {"y", true}, {"foobar", "y"}}
 
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -160,7 +159,7 @@ return 993322;
     `
 
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -194,9 +193,9 @@ return 993322;
 
 	for _, i in tests {
 		stmt := program[i]
-		_, ok := stmt.(ma.Node_Return_Statement)
+		_, ok := stmt.(m.Node_Return_Statement)
 		if !ok {
-			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, ma.ast_type(stmt))
+			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, m.ast_type(stmt))
 			continue
 		}
 	}
@@ -206,7 +205,7 @@ return 993322;
 test_parsing_identifier_expression :: proc(t: ^testing.T) {
 	input := "foobar;"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -244,7 +243,7 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 test_parsing_integer_literal :: proc(t: ^testing.T) {
 	input := "5;"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -281,7 +280,7 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 test_parsing_boolean_literal :: proc(t: ^testing.T) {
 	input := "true;"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -318,7 +317,7 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 test_parsing_string_literal :: proc(t: ^testing.T) {
 	input := `"hello world";`
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -349,7 +348,7 @@ test_parsing_string_literal :: proc(t: ^testing.T) {
 	literal, str_ok := program[0].(string)
 
 	if !str_ok {
-		log.errorf("expression is not string, got='%v'", ma.ast_type(program[0]))
+		log.errorf("expression is not string, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -366,7 +365,7 @@ prefix_test_case_is_ok :: proc(
 	operator: string,
 	operand_value: Literal,
 ) -> bool {
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -395,12 +394,12 @@ prefix_test_case_is_ok :: proc(
 		return false
 	}
 
-	infix, ok := program[0].(ma.Node_Prefix_Expression)
+	infix, ok := program[0].(m.Node_Prefix_Expression)
 	if !ok {
 		log.errorf(
 			"test [%d]: program[0] is not 'Node_Prefix_Expression', got='%v'",
 			test_number,
-			ma.ast_type(program[0]),
+			m.ast_type(program[0]),
 		)
 		return false
 	}
@@ -447,14 +446,14 @@ test_parsing_prefix_expressions :: proc(t: ^testing.T) {
 }
 
 infix_expression_is_valid :: proc(
-	expression: ^ma.Node,
+	expression: ^m.Node,
 	left_value: Literal,
 	operator: string,
 	right_value: Literal,
 ) -> bool {
-	infix, ok := expression.(ma.Node_Infix_Expression)
+	infix, ok := expression.(m.Node_Infix_Expression)
 	if !ok {
-		log.errorf("expression is not 'Node_Infix_Expression', got='%v'", ma.ast_type(expression))
+		log.errorf("expression is not 'Node_Infix_Expression', got='%v'", m.ast_type(expression))
 		return false
 	}
 
@@ -482,7 +481,7 @@ infix_test_case_is_valid :: proc(
 	operator: string,
 	right_value: Literal,
 ) -> bool {
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -546,7 +545,7 @@ test_parsing_infix_expressions :: proc(t: ^testing.T) {
 }
 
 ast_string_is_valid :: proc(input: string, expected: string) -> bool {
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -565,7 +564,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	}
 
 	sb := st.builder_make(context.temp_allocator)
-	ma.ast_to_string(program, &sb)
+	m.ast_to_string(program, &sb)
 
 	if st.to_string(sb) != expected {
 		log.errorf(
@@ -583,7 +582,7 @@ ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 test_parsing_if_expression :: proc(t: ^testing.T) {
 	input := "if x < y { x }"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -609,9 +608,9 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_If_Expression)
+	stmt, ok := program[0].(m.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -643,7 +642,7 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	input := "if x < y { x } else { y }"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -669,9 +668,9 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_If_Expression)
+	stmt, ok := program[0].(m.Node_If_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_If_Expression, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_If_Expression, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -714,7 +713,7 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 test_parsing_function_literal :: proc(t: ^testing.T) {
 	input := "fn(x, y) { x + y; }"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -740,9 +739,9 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Function_Literal)
+	stmt, ok := program[0].(m.Node_Function_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Function_Literal, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Function_Literal, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -785,7 +784,7 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 test_parsing_call_expression :: proc(t: ^testing.T) {
 	input := "add(1, 2 * 3, 4 + 5);"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -811,9 +810,9 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Call_Expression)
+	stmt, ok := program[0].(m.Node_Call_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_Call_Expression, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Call_Expression, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -850,7 +849,7 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 test_parsing_array_literal :: proc(t: ^testing.T) {
 	input := "[1, 2 * 2, 3 + 3]"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -876,9 +875,9 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Array_Literal)
+	stmt, ok := program[0].(m.Node_Array_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Array_Literal, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Array_Literal, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -909,7 +908,7 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 	input := `{"one": 1, "two": 2, "three": 3}`
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -935,9 +934,9 @@ test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -973,7 +972,7 @@ test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 	input := `{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}`
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -999,9 +998,9 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -1012,14 +1011,14 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 		return
 	}
 
-	expected := map[string]proc(node: ^ma.Node) -> bool {
-		"one" = proc(node: ^ma.Node) -> bool {
+	expected := map[string]proc(node: ^m.Node) -> bool {
+		"one" = proc(node: ^m.Node) -> bool {
 			return infix_expression_is_valid(node, 0, "+", 1)
 		},
-		"two" = proc(node: ^ma.Node) -> bool {
+		"two" = proc(node: ^m.Node) -> bool {
 			return infix_expression_is_valid(node, 10, "-", 8)
 		},
-		"three" = proc(node: ^ma.Node) -> bool {
+		"three" = proc(node: ^m.Node) -> bool {
 			return infix_expression_is_valid(node, 15, "/", 5)
 		},
 	}
@@ -1044,7 +1043,7 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
 	input := "{}"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -1070,9 +1069,9 @@ test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Hash_Table_Literal)
+	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
-		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}
@@ -1088,7 +1087,7 @@ test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
 test_parsing_index_expression :: proc(t: ^testing.T) {
 	input := "my_array[1 + 1]"
 
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
@@ -1114,9 +1113,9 @@ test_parsing_index_expression :: proc(t: ^testing.T) {
 		return
 	}
 
-	stmt, ok := program[0].(ma.Node_Index_Expression)
+	stmt, ok := program[0].(m.Node_Index_Expression)
 	if !ok {
-		log.errorf("program[0] is not Node_Index_Expression, got='%v'", ma.ast_type(program[0]))
+		log.errorf("program[0] is not Node_Index_Expression, got='%v'", m.ast_type(program[0]))
 		testing.fail(t)
 		return
 	}

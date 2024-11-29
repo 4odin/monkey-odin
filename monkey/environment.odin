@@ -1,4 +1,4 @@
-package monkey_evaluator
+package monkey_odin
 
 Environment :: struct {
 	store: map[string]Object_Base,

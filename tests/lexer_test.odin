@@ -1,6 +1,6 @@
 package monkey_tests
 
-import mp "../parser"
+import m "../monkey"
 
 import "core:log"
 import "core:testing"
@@ -35,7 +35,7 @@ if 5 < 10 {
 
 
 	tests := [?]struct {
-		expected_type:    mp.Token_Type,
+		expected_type:    m.Token_Type,
 		expected_literal: string,
 	} {
 		{.Let, "let"},
@@ -151,7 +151,7 @@ if 5 < 10 {
 		// end of test cases
 	}
 
-	l := mp.lexer()
+	l := m.lexer()
 	l->init(input)
 
 	for test_case, i in tests {

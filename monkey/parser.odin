@@ -1,4 +1,4 @@
-package monkey_parser
+package monkey_odin
 
 import "core:fmt"
 import "core:mem"
@@ -6,16 +6,15 @@ import "core:strconv"
 
 import st "core:strings"
 
-import ma "../ast"
 import "../utils"
 
 @(private = "file")
 Dap_Item :: union {
-	ma.Node_Program,
-	ma.Node_Block_Expression,
-	[dynamic]ma.Node,
-	[dynamic]ma.Node_Identifier,
-	ma.Node_Hash_Table_Literal,
+	Node_Program,
+	Node_Block_Expression,
+	[dynamic]Node,
+	[dynamic]Node_Identifier,
+	Node_Hash_Table_Literal,
 }
 
 Parser :: struct {
@@ -30,7 +29,7 @@ Parser :: struct {
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	parse:         proc(p: ^Parser, input: string) -> ma.Node_Program,
+	parse:         proc(p: ^Parser, input: string) -> Node_Program,
 	clear_errors:  proc(p: ^Parser),
 
 	// Managed
@@ -46,19 +45,19 @@ parser :: proc() -> Parser {
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
 				switch kind in element {
-				case ma.Node_Program:
+				case Node_Program:
 					delete(kind)
 
-				case ma.Node_Block_Expression:
+				case Node_Block_Expression:
 					delete(kind)
 
-				case [dynamic]ma.Node_Identifier:
+				case [dynamic]Node_Identifier:
 					delete(kind)
 
-				case [dynamic]ma.Node:
+				case [dynamic]Node:
 					delete(kind)
 
-				case ma.Node_Hash_Table_Literal:
+				case Node_Hash_Table_Literal:
 					delete(kind)
 				}
 			}}),
@@ -106,10 +105,10 @@ cur_precedence :: proc(p: ^Parser) -> Precedence {
 }
 
 @(private = "file")
-Prefix_Parse_Fn :: #type proc(p: ^Parser) -> ma.Node
+Prefix_Parse_Fn :: #type proc(p: ^Parser) -> Node
 
 @(private = "file")
-Infix_Parse_Fn :: #type proc(p: ^Parser, left: ma.Node) -> ma.Node
+Infix_Parse_Fn :: #type proc(p: ^Parser, left: Node) -> Node
 
 @(private = "file")
 prefix_parse_fns := #partial [Token_Type]Prefix_Parse_Fn {
@@ -195,17 +194,17 @@ next_token :: proc(p: ^Parser) {
 }
 
 @(private = "file")
-parse_identifier :: proc(p: ^Parser) -> ma.Node {
-	return ma.Node_Identifier{string(p.cur_token.text_slice)}
+parse_identifier :: proc(p: ^Parser) -> Node {
+	return Node_Identifier{string(p.cur_token.text_slice)}
 }
 
 @(private = "file")
-parse_string_literal :: proc(p: ^Parser) -> ma.Node {
+parse_string_literal :: proc(p: ^Parser) -> Node {
 	return string(p.cur_token.text_slice)
 }
 
 @(private = "file")
-parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
+parse_integer_literal :: proc(p: ^Parser) -> Node {
 	value, ok := strconv.parse_int(string(p.cur_token.text_slice))
 	if !ok {
 		msg := st.builder_make(p._pool)
@@ -219,21 +218,21 @@ parse_integer_literal :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_boolean_literal :: proc(p: ^Parser) -> ma.Node {
+parse_boolean_literal :: proc(p: ^Parser) -> Node {
 	return current_token_is(p, .True)
 }
 
 @(private = "file")
-parse_array_literal :: proc(p: ^Parser) -> ma.Node {
+parse_array_literal :: proc(p: ^Parser) -> Node {
 	result, ok := parse_expression_list(p, .Right_Bracket)
 	if !ok do return nil
 
-	return ma.Node_Array_Literal(result)
+	return Node_Array_Literal(result)
 }
 
 @(private = "file")
-parse_hash_table_literal :: proc(p: ^Parser) -> ma.Node {
-	result := utils.register_in_pool(&p.managed, ma.Node_Hash_Table_Literal)
+parse_hash_table_literal :: proc(p: ^Parser) -> Node {
+	result := utils.register_in_pool(&p.managed, Node_Hash_Table_Literal)
 
 	for !peek_token_is(p, .Right_Brace) {
 		next_token(p)
@@ -244,7 +243,7 @@ parse_hash_table_literal :: proc(p: ^Parser) -> ma.Node {
 		if !ok {
 			msg := st.builder_make(p._pool)
 
-			fmt.sbprintf(&msg, "expected key to be 'string', got '%s' instead", ma.ast_type(key))
+			fmt.sbprintf(&msg, "expected key to be 'string', got '%s' instead", ast_type(key))
 			append(&p.errors, st.to_string(msg))
 
 			return nil
@@ -267,7 +266,7 @@ parse_hash_table_literal :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_let_statement :: proc(p: ^Parser) -> ma.Node {
+parse_let_statement :: proc(p: ^Parser) -> Node {
 	if !expect_peek(p, .Identifier) do return nil
 
 	name := string(p.cur_token.text_slice)
@@ -281,11 +280,11 @@ parse_let_statement :: proc(p: ^Parser) -> ma.Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return ma.Node_Let_Statement{name = name, value = new_clone(value, p._pool)}
+	return Node_Let_Statement{name = name, value = new_clone(value, p._pool)}
 }
 
 @(private = "file")
-parse_return_statement :: proc(p: ^Parser) -> ma.Node {
+parse_return_statement :: proc(p: ^Parser) -> Node {
 	next_token(p)
 
 	ret_val := parse_expression(p, .Lowest)
@@ -293,11 +292,11 @@ parse_return_statement :: proc(p: ^Parser) -> ma.Node {
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
 
-	return ma.Node_Return_Statement{ret_val = new_clone(ret_val, p._pool)}
+	return Node_Return_Statement{ret_val = new_clone(ret_val, p._pool)}
 }
 
 @(private = "file")
-parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
+parse_prefix_expression :: proc(p: ^Parser) -> Node {
 	op := string(p.cur_token.text_slice)
 
 	next_token(p)
@@ -305,11 +304,11 @@ parse_prefix_expression :: proc(p: ^Parser) -> ma.Node {
 	operand := parse_expression(p, .Prefix)
 	if operand == nil do return nil
 
-	return ma.Node_Prefix_Expression{op = op, operand = new_clone(operand, p._pool)}
+	return Node_Prefix_Expression{op = op, operand = new_clone(operand, p._pool)}
 }
 
 @(private = "file")
-parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
+parse_infix_expression :: proc(p: ^Parser, left: Node) -> Node {
 	op := string(p.cur_token.text_slice)
 
 	prec := cur_precedence(p)
@@ -317,7 +316,7 @@ parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
 	right := parse_expression(p, prec)
 	if right == nil do return nil
 
-	return ma.Node_Infix_Expression {
+	return Node_Infix_Expression {
 		op = op,
 		left = new_clone(left, p._pool),
 		right = new_clone(right, p._pool),
@@ -325,7 +324,7 @@ parse_infix_expression :: proc(p: ^Parser, left: ma.Node) -> ma.Node {
 }
 
 @(private = "file")
-parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
+parse_grouped_expression :: proc(p: ^Parser) -> Node {
 	next_token(p)
 	expr := parse_expression(p, .Lowest)
 
@@ -334,8 +333,8 @@ parse_grouped_expression :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
-	block := utils.register_in_pool(&p.managed, ma.Node_Block_Expression)
+parse_block_statement :: proc(p: ^Parser) -> Node_Block_Expression {
+	block := utils.register_in_pool(&p.managed, Node_Block_Expression)
 
 	next_token(p)
 
@@ -350,7 +349,7 @@ parse_block_statement :: proc(p: ^Parser) -> ma.Node_Block_Expression {
 }
 
 @(private = "file")
-parse_if_expression :: proc(p: ^Parser) -> ma.Node {
+parse_if_expression :: proc(p: ^Parser) -> Node {
 	next_token(p)
 
 	condition := parse_expression(p, .Lowest)
@@ -360,7 +359,7 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 
 	consequence := parse_block_statement(p)
 
-	alternative: ma.Node_Block_Expression = nil
+	alternative: Node_Block_Expression = nil
 
 	if peek_token_is(p, .Else) {
 		next_token(p)
@@ -370,7 +369,7 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 		alternative = parse_block_statement(p)
 	}
 
-	return ma.Node_If_Expression {
+	return Node_If_Expression {
 		condition = new_clone(condition, p._pool),
 		consequence = consequence,
 		alternative = alternative,
@@ -378,8 +377,8 @@ parse_if_expression :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
-	identifiers := utils.register_in_pool(&p.managed, [dynamic]ma.Node_Identifier)
+parse_function_parameters :: proc(p: ^Parser) -> [dynamic]Node_Identifier {
+	identifiers := utils.register_in_pool(&p.managed, [dynamic]Node_Identifier)
 
 	if peek_token_is(p, .Right_Paren) {
 		next_token(p)
@@ -388,12 +387,12 @@ parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
 
 	next_token(p)
 
-	append(identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
+	append(identifiers, Node_Identifier{value = string(p.cur_token.text_slice)})
 
 	for peek_token_is(p, .Comma) {
 		next_token(p)
 		next_token(p)
-		append(identifiers, ma.Node_Identifier{value = string(p.cur_token.text_slice)})
+		append(identifiers, Node_Identifier{value = string(p.cur_token.text_slice)})
 	}
 
 	if !expect_peek(p, .Right_Paren) do return nil
@@ -402,7 +401,7 @@ parse_function_parameters :: proc(p: ^Parser) -> [dynamic]ma.Node_Identifier {
 }
 
 @(private = "file")
-parse_function_literal :: proc(p: ^Parser) -> ma.Node {
+parse_function_literal :: proc(p: ^Parser) -> Node {
 	if !expect_peek(p, .Left_Paren) do return nil
 
 	parameters := parse_function_parameters(p)
@@ -411,12 +410,12 @@ parse_function_literal :: proc(p: ^Parser) -> ma.Node {
 
 	body := parse_block_statement(p)
 
-	return ma.Node_Function_Literal{body = body, parameters = parameters}
+	return Node_Function_Literal{body = body, parameters = parameters}
 }
 
 @(private = "file")
-parse_expression_list :: proc(p: ^Parser, end: Token_Type) -> ([dynamic]ma.Node, bool) {
-	args := utils.register_in_pool(&p.managed, [dynamic]ma.Node)
+parse_expression_list :: proc(p: ^Parser, end: Token_Type) -> ([dynamic]Node, bool) {
+	args := utils.register_in_pool(&p.managed, [dynamic]Node)
 
 	if peek_token_is(p, end) {
 		next_token(p)
@@ -444,21 +443,21 @@ parse_expression_list :: proc(p: ^Parser, end: Token_Type) -> ([dynamic]ma.Node,
 }
 
 @(private = "file")
-parse_call_expression :: proc(p: ^Parser, function: ma.Node) -> ma.Node {
+parse_call_expression :: proc(p: ^Parser, function: Node) -> Node {
 	arguments, ok := parse_expression_list(p, .Right_Paren)
 	if !ok do return nil
 
-	return ma.Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}
+	return Node_Call_Expression{function = new_clone(function, p._pool), arguments = arguments}
 }
 
 @(private = "file")
-parse_index_expression :: proc(p: ^Parser, operand: ma.Node) -> ma.Node {
+parse_index_expression :: proc(p: ^Parser, operand: Node) -> Node {
 	next_token(p)
 	index := parse_expression(p, .Lowest)
 
 	if !expect_peek(p, .Right_Bracket) do return nil
 
-	return ma.Node_Index_Expression {
+	return Node_Index_Expression {
 		operand = new_clone(operand, p._pool),
 		index = new_clone(index, p._pool),
 	}
@@ -473,7 +472,7 @@ no_prefix_parse_fn_error :: proc(p: ^Parser, t: Token_Type) {
 }
 
 @(private = "file")
-parse_expression :: proc(p: ^Parser, prec: Precedence) -> ma.Node {
+parse_expression :: proc(p: ^Parser, prec: Precedence) -> Node {
 	prefix := prefix_parse_fns[p.cur_token.type]
 
 	if prefix == nil {
@@ -496,7 +495,7 @@ parse_expression :: proc(p: ^Parser, prec: Precedence) -> ma.Node {
 }
 
 @(private = "file")
-parse_expression_statement :: proc(p: ^Parser) -> ma.Node {
+parse_expression_statement :: proc(p: ^Parser) -> Node {
 	expr := parse_expression(p, .Lowest)
 
 	if peek_token_is(p, .Semicolon) do next_token(p)
@@ -505,7 +504,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_statement :: proc(p: ^Parser) -> ma.Node {
+parse_statement :: proc(p: ^Parser) -> Node {
 	#partial switch p.cur_token.type {
 	case .Let:
 		return parse_let_statement(p)
@@ -518,14 +517,14 @@ parse_statement :: proc(p: ^Parser) -> ma.Node {
 }
 
 @(private = "file")
-parse_program :: proc(p: ^Parser, input: string) -> ma.Node_Program {
+parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
 	p.l->init(input)
 	next_token(p)
 	next_token(p)
 
 	if ok, _, _ := p->mem_is_freed(); ok do p->mem_init()
 
-	program := utils.register_in_pool(&p.managed, ma.Node_Program)
+	program := utils.register_in_pool(&p.managed, Node_Program)
 
 	for p.cur_token.type != .EOF {
 		if stmt := parse_statement(p); stmt != nil {

@@ -2,12 +2,12 @@ package monkey_tests
 
 import "core:log"
 
-import mv "../vm"
+import m "../monkey"
 
 import "core:testing"
 
-concat_instructions :: proc(s: []mv.Instructions) -> mv.Instructions {
-	out := make(mv.Instructions, 0, context.temp_allocator)
+concat_instructions :: proc(s: []m.Instructions) -> m.Instructions {
+	out := make(m.Instructions, 0, context.temp_allocator)
 
 	for ins_slice in s {
 		append(&out, ..ins_slice[:])
@@ -19,15 +19,15 @@ concat_instructions :: proc(s: []mv.Instructions) -> mv.Instructions {
 @(test)
 test_code_make :: proc(t: ^testing.T) {
 	tests := [?]struct {
-		op:       mv.Opcode,
+		op:       m.Opcode,
 		operands: []int,
 		expected: []byte,
-	}{{.Constant, {65534}, {u8(mv.Opcode.Constant), 255, 254}}}
+	}{{.Constant, {65534}, {u8(m.Opcode.Constant), 255, 254}}}
 
 	defer free_all(context.temp_allocator)
 
 	for test_case, i in tests {
-		instruction := mv.instruction_make(
+		instruction := m.instruction_make(
 			context.temp_allocator,
 			test_case.op,
 			..test_case.operands,
@@ -62,10 +62,10 @@ test_code_make :: proc(t: ^testing.T) {
 
 @(test)
 test_instructions_string :: proc(t: ^testing.T) {
-	instructions := [?]mv.Instructions {
-		mv.instruction_make(context.temp_allocator, .Constant, 1),
-		mv.instruction_make(context.temp_allocator, .Constant, 2),
-		mv.instruction_make(context.temp_allocator, .Constant, 65535),
+	instructions := [?]m.Instructions {
+		m.instruction_make(context.temp_allocator, .Constant, 1),
+		m.instruction_make(context.temp_allocator, .Constant, 2),
+		m.instruction_make(context.temp_allocator, .Constant, 65535),
 	}
 
 	defer free_all(context.temp_allocator)
@@ -78,7 +78,7 @@ test_instructions_string :: proc(t: ^testing.T) {
 
 	concatenated := concat_instructions(instructions[:])
 
-	instructions_str := mv.instructions_to_string(concatenated, context.temp_allocator)
+	instructions_str := m.instructions_to_string(concatenated, context.temp_allocator)
 
 	if instructions_str != expected {
 		log.errorf(
@@ -93,7 +93,7 @@ test_instructions_string :: proc(t: ^testing.T) {
 @(test)
 test_read_operands :: proc(t: ^testing.T) {
 	tests := []struct {
-		op:         mv.Opcode,
+		op:         m.Opcode,
 		operands:   []int,
 		bytes_read: int,
 	}{{.Constant, {65535}, 2}}
@@ -101,20 +101,20 @@ test_read_operands :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 
 	for test_case, i in tests {
-		instruction := mv.instruction_make(
+		instruction := m.instruction_make(
 			context.temp_allocator,
 			test_case.op,
 			..test_case.operands,
 		)
 
-		def, ok := mv.lookup(test_case.op)
+		def, ok := m.lookup(test_case.op)
 		if !ok {
 			log.errorf("definition not found: %q", test_case.op)
 			testing.fail(t)
 			continue
 		}
 
-		operands_read, n := mv.read_operands(def, instruction[1:], context.temp_allocator)
+		operands_read, n := m.read_operands(def, instruction[1:], context.temp_allocator)
 		if n != test_case.bytes_read {
 			log.errorf(
 				"test[%d] has failed: n wrong. wants='%d', got='%d'",

@@ -1,10 +1,9 @@
-package monkey_evaluator
+package monkey_odin
 
 import "core:fmt"
 import "core:mem"
 import st "core:strings"
 
-import ma "../ast"
 import "../utils"
 
 @(private = "file")
@@ -23,7 +22,7 @@ Evaluator :: struct {
 	// methods
 	eval:          proc(
 		e: ^Evaluator,
-		node: ma.Node_Program,
+		node: Node_Program,
 		allocator := context.allocator,
 	) -> (
 		Object_Base,
@@ -97,7 +96,7 @@ new_error :: proc(e: ^Evaluator, str: string, args: ..any) -> string {
 @(private = "file")
 eval_program_statements :: proc(
 	e: ^Evaluator,
-	program: ma.Node_Program,
+	program: Node_Program,
 	allocator := context.allocator,
 ) -> (
 	Object_Base,
@@ -123,7 +122,7 @@ eval_program_statements :: proc(
 @(private = "file")
 eval_block_statements :: proc(
 	e: ^Evaluator,
-	program: ma.Node_Block_Expression,
+	program: Node_Block_Expression,
 	current_env: ^Environment,
 ) -> (
 	Object,
@@ -262,9 +261,9 @@ eval_infix_expression :: proc(
 	Object_Base,
 	bool,
 ) {
-	if ma.ast_type(left) == int && ma.ast_type(right) == int {
+	if ast_type(left) == int && ast_type(right) == int {
 		return eval_integer_infix_expression(e, op, left.(int), right.(int))
-	} else if ma.ast_type(left) == string && ma.ast_type(right) == string {
+	} else if ast_type(left) == string && ast_type(right) == string {
 		return eval_string_infix_expression(e, op, left.(string), right.(string))
 	}
 
@@ -302,7 +301,7 @@ is_truthy :: proc(obj: Object) -> bool {
 @(private = "file")
 eval_if_expression :: proc(
 	e: ^Evaluator,
-	node: ma.Node_If_Expression,
+	node: Node_If_Expression,
 	current_env: ^Environment,
 ) -> (
 	Object,
@@ -323,7 +322,7 @@ eval_if_expression :: proc(
 @(private = "file")
 eval_identifier :: proc(
 	e: ^Evaluator,
-	node: ma.Node_Identifier,
+	node: Node_Identifier,
 	current_env: ^Environment,
 ) -> (
 	Object_Base,
@@ -339,7 +338,7 @@ eval_identifier :: proc(
 @(private = "file")
 eval_array_of_expressions_fixed :: proc(
 	e: ^Evaluator,
-	expressions: [dynamic]ma.Node,
+	expressions: [dynamic]Node,
 	current_env: ^Environment,
 ) -> (
 	[dynamic]Object_Base,
@@ -359,7 +358,7 @@ eval_array_of_expressions_fixed :: proc(
 @(private = "file")
 eval_array_of_expressions_registered :: proc(
 	e: ^Evaluator,
-	expressions: ma.Node_Array_Literal,
+	expressions: Node_Array_Literal,
 	current_env: ^Environment,
 ) -> (
 	^Obj_Array,
@@ -427,7 +426,7 @@ apply_function :: proc(
 @(private = "file")
 eval_hash_table_literal :: proc(
 	e: ^Evaluator,
-	node: ma.Node_Hash_Table_Literal,
+	node: Node_Hash_Table_Literal,
 	current_env: ^Environment,
 ) -> (
 	Object,
@@ -662,16 +661,16 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 }
 
 @(private = "file")
-eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object, bool) {
+eval :: proc(e: ^Evaluator, node: Node, current_env: ^Environment) -> (Object, bool) {
 	#partial switch &data in node {
 
 	// statements
-	case ma.Node_Return_Statement:
+	case Node_Return_Statement:
 		val, ok := eval(e, data.ret_val^, current_env)
 		if !ok do return val, false
 		return Object_Return(to_object_base(val)), true
 
-	case ma.Node_Let_Statement:
+	case Node_Let_Statement:
 		val, ok := eval(e, data.value^, current_env)
 		if !ok do return val, false
 
@@ -682,41 +681,41 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 		return Object_Base(NULL), true
 
 	// expressions
-	case ma.Node_Identifier:
+	case Node_Identifier:
 		return eval_identifier(e, data, current_env)
 
-	case ma.Node_Prefix_Expression:
+	case Node_Prefix_Expression:
 		operand, ok := eval(e, data.operand^, current_env)
 		if !ok do return operand, false
 		return eval_prefix_expression(e, data.op, to_object_base(operand))
 
-	case ma.Node_Infix_Expression:
+	case Node_Infix_Expression:
 		left, ok := eval(e, data.left^, current_env)
 		if !ok do return left, false
 		right, ok2 := eval(e, data.right^, current_env)
 		if !ok2 do return right, ok2
 		return eval_infix_expression(e, data.op, to_object_base(left), to_object_base(right))
 
-	case ma.Node_Block_Expression:
+	case Node_Block_Expression:
 		return eval_block_statements(e, data, current_env)
 
-	case ma.Node_If_Expression:
+	case Node_If_Expression:
 		return eval_if_expression(e, data, current_env)
 
-	case ma.Node_Function_Literal:
+	case Node_Function_Literal:
 		fn := new(Obj_Function, e._pool)
 
-		fn.parameters = make([dynamic]ma.Node_Identifier, 0, cap(data.parameters), e._pool)
-		ma.ast_copy_multiple(&data.parameters, &fn.parameters, e._pool)
+		fn.parameters = make([dynamic]Node_Identifier, 0, cap(data.parameters), e._pool)
+		ast_copy_multiple(&data.parameters, &fn.parameters, e._pool)
 
-		fn.body = make(ma.Node_Block_Expression, 0, cap(data.body), e._pool)
-		ma.ast_copy_multiple(&data.body, &fn.body, e._pool)
+		fn.body = make(Node_Block_Expression, 0, cap(data.body), e._pool)
+		ast_copy_multiple(&data.body, &fn.body, e._pool)
 
 		fn.env = current_env
 
 		return Object_Base(fn), true
 
-	case ma.Node_Call_Expression:
+	case Node_Call_Expression:
 		function, ok := eval(e, data.function^, current_env)
 		if !ok do return function, false
 
@@ -725,7 +724,7 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 
 		return apply_function(e, to_object_base(function), args)
 
-	case ma.Node_Index_Expression:
+	case Node_Index_Expression:
 		operand, ok := eval(e, data.operand^, current_env)
 		if !ok do return operand, false
 
@@ -744,15 +743,15 @@ eval :: proc(e: ^Evaluator, node: ma.Node, current_env: ^Environment) -> (Object
 	case string:
 		return Object_Base(st.clone(data, e._pool)), true
 
-	case ma.Node_Array_Literal:
+	case Node_Array_Literal:
 		elements, ok := eval_array_of_expressions_registered(e, data, current_env)
 		if !ok do return Object_Base(elements), false
 
 		return Object_Base(elements), true
 
-	case ma.Node_Hash_Table_Literal:
+	case Node_Hash_Table_Literal:
 		return eval_hash_table_literal(e, data, current_env)
 	}
 
-	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ma.ast_type(node))), false
+	return Object_Base(new_error(e, "unrecognized Node of type '%v'", ast_type(node))), false
 }

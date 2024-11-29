@@ -1,4 +1,4 @@
-package monkey_parser
+package monkey_odin
 
 Lexer :: struct {
 	input:      []u8,

@@ -1,4 +1,4 @@
-package monkey_parser
+package monkey_odin
 
 Token_Type :: enum {
 	Illigal,

@@ -1,25 +1,22 @@
 package monkey_tests
 
-import ma "../ast"
-import me "../evaluator"
-import mp "../parser"
+import m "../monkey"
 
 import "core:log"
 import st "core:strings"
 import "core:testing"
 
 _ :: st
-_ :: ma
 
 evaluate_is_valid_get_evaluator :: proc(
 	input: string,
 	print_errors := true,
 ) -> (
-	me.Object_Base,
-	^me.Evaluator,
+	m.Object_Base,
+	^m.Evaluator,
 	bool,
 ) {
-	p := mp.parser()
+	p := m.parser()
 	p->config()
 	defer p->mem_free()
 
@@ -30,7 +27,7 @@ evaluate_is_valid_get_evaluator :: proc(
 		return nil, nil, false
 	}
 
-	e := new_clone(me.evaluator())
+	e := new_clone(m.evaluator())
 	e->config()
 
 	evaluated, ok := e->eval(program, context.temp_allocator)
@@ -46,7 +43,7 @@ evaluate_is_valid_get_evaluator :: proc(
 	return evaluated, e, true
 }
 
-evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_Base, bool) {
+evalulation_is_valid :: proc(input: string, print_errors := true) -> (m.Object_Base, bool) {
 
 	evaluated, e, ok := evaluate_is_valid_get_evaluator(input, print_errors)
 
@@ -58,10 +55,10 @@ evalulation_is_valid :: proc(input: string, print_errors := true) -> (me.Object_
 	return evaluated, ok
 }
 
-integer_object_is_valid :: proc(obj: me.Object_Base, expected: int) -> bool {
+integer_object_is_valid :: proc(obj: m.Object_Base, expected: int) -> bool {
 	result, ok := obj.(int)
 	if !ok {
-		log.errorf("object is not integer, got='%v'", me.obj_type(obj))
+		log.errorf("object is not integer, got='%v'", m.obj_type(obj))
 		return false
 	}
 
@@ -73,10 +70,10 @@ integer_object_is_valid :: proc(obj: me.Object_Base, expected: int) -> bool {
 	return true
 }
 
-boolean_object_is_valid :: proc(obj: me.Object_Base, expected: bool) -> bool {
+boolean_object_is_valid :: proc(obj: m.Object_Base, expected: bool) -> bool {
 	result, ok := obj.(bool)
 	if !ok {
-		log.errorf("object is not boolean, got='%v'", me.obj_type(obj))
+		log.errorf("object is not boolean, got='%v'", m.obj_type(obj))
 		return false
 	}
 
@@ -88,10 +85,10 @@ boolean_object_is_valid :: proc(obj: me.Object_Base, expected: bool) -> bool {
 	return true
 }
 
-string_object_is_valid :: proc(obj: me.Object_Base, expected: string) -> bool {
+string_object_is_valid :: proc(obj: m.Object_Base, expected: string) -> bool {
 	result, ok := obj.(string)
 	if !ok {
-		log.errorf("object is not string, got='%v'", me.obj_type(obj))
+		log.errorf("object is not string, got='%v'", m.obj_type(obj))
 		return false
 	}
 
@@ -236,11 +233,11 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 
 @(test)
 test_eval_if_else_expression :: proc(t: ^testing.T) {
-	NULL :: me.Obj_Null{}
+	NULL :: m.Obj_Null{}
 
 	tests := []struct {
 		input:    string,
-		expected: me.Object_Base,
+		expected: m.Object_Base,
 	} {
 		{"if true { 10 }", 10},
 		{"if false { 10 }", NULL},
@@ -266,9 +263,9 @@ test_eval_if_else_expression :: proc(t: ^testing.T) {
 				testing.fail(t)
 			}
 
-		case me.Obj_Null:
-			if me.obj_type(evaluated) != me.Obj_Null {
-				log.errorf("object is not Obj_Null, got='%v'", me.obj_type(evaluated))
+		case m.Obj_Null:
+			if m.obj_type(evaluated) != m.Obj_Null {
+				log.errorf("object is not Obj_Null, got='%v'", m.obj_type(evaluated))
 				log.errorf("test[%d] has failed", i)
 				testing.fail(t)
 			}
@@ -356,9 +353,9 @@ test_eval_function_object :: proc(t: ^testing.T) {
 		return
 	}
 
-	fn, is_fn := evaluated.(^me.Obj_Function)
+	fn, is_fn := evaluated.(^m.Obj_Function)
 	if !is_fn {
-		log.errorf("object is not function. got='%v'", me.obj_type(evaluated))
+		log.errorf("object is not function. got='%v'", m.obj_type(evaluated))
 		testing.fail(t)
 		return
 	}
@@ -384,7 +381,7 @@ test_eval_function_object :: proc(t: ^testing.T) {
 	sb := st.builder_make(context.temp_allocator)
 	defer free_all(context.temp_allocator)
 
-	ma.ast_to_string(fn.body, &sb)
+	m.ast_to_string(fn.body, &sb)
 
 	if st.to_string(sb) != expected_body {
 		log.errorf(
@@ -482,9 +479,9 @@ test_eval_array_literals :: proc(t: ^testing.T) {
 		return
 	}
 
-	arr, is_arr := evaluated.(^me.Obj_Array)
+	arr, is_arr := evaluated.(^m.Obj_Array)
 	if !is_arr {
-		log.errorf("expected array object but got '%v'", me.obj_type(evaluated))
+		log.errorf("expected array object but got '%v'", m.obj_type(evaluated))
 		testing.fail(t)
 		return
 	}
@@ -532,9 +529,9 @@ test_eval_hash_literals :: proc(t: ^testing.T) {
 		return
 	}
 
-	ht, is_hash_table := evaluated.(^me.Obj_Hash_Table)
+	ht, is_hash_table := evaluated.(^m.Obj_Hash_Table)
 	if !is_hash_table {
-		log.errorf("expected hash table object but got '%v'", me.obj_type(evaluated))
+		log.errorf("expected hash table object but got '%v'", m.obj_type(evaluated))
 		testing.fail(t)
 		return
 	}
