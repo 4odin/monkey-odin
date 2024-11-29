@@ -119,7 +119,7 @@ read_operands :: proc(
 	for width, i in def.operand_widths {
 		switch width {
 		case 2:
-			val, _ := endian.get_u16(ins[offset:], .Big)
+			val, _ := read_u16(ins[offset:])
 			operands[i] = int(val)
 		}
 
@@ -127,4 +127,8 @@ read_operands :: proc(
 	}
 
 	return operands, offset
+}
+
+read_u16 :: proc(ins: []byte) -> (u16, bool) {
+	return endian.get_u16(ins, .Big)
 }

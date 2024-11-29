@@ -118,7 +118,11 @@ register_in_pool :: proc(
 	intrinsics.type_is_slice(T) ||
 	intrinsics.type_is_map(T) {
 	if reserved == 0 {
-		append(&m._dyn_arr_pool, make(T))
+		when intrinsics.type_is_slice(T) {
+			panic("you cannot register slice withot reserved value")
+		} else {
+			append(&m._dyn_arr_pool, make(T))
+		}
 	} else {
 		when intrinsics.type_is_dynamic_array(T) {
 			append(&m._dyn_arr_pool, make(T, 0, reserved))

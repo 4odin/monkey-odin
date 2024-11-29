@@ -177,7 +177,7 @@ parser_config :: proc(
 ) -> mem.Allocator_Error {
 	err := p->mem_config(pool_reserved_block_size, dyn_arr_reserved)
 
-	p.errors.allocator = p._pool
+	if err == .None do p.errors.allocator = p._pool
 
 	return err
 }
