@@ -80,7 +80,19 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 
 @(test)
 test_vm_integer_arithmetic :: proc(t: ^testing.T) {
-	tests := []VM_Test_Case{{"1", 1}, {"2", 2}, {"1 + 2", 3}}
+	tests := []VM_Test_Case {
+		{"1", 1},
+		{"2", 2},
+		{"1 + 2", 3},
+		{"3 - 1", 2},
+		{"2 * 2", 4},
+		{"4 / 2", 2},
+		{"5 + 5 + 5 + 5 - 10", 10},
+		{"2 * 2 * 2 * 2 * 2", 32},
+		{"5 * 2 + 10", 20},
+		{"5 + 2 * 10", 25},
+		{"5 * (2 + 10)", 60},
+	}
 
 	defer free_all(context.temp_allocator)
 

@@ -123,6 +123,16 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 	tests := [?]Compiler_Test_Case {
 		{
+			"1; 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Pop),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
 			"1 + 2",
 			{1, 2},
 			{
@@ -133,12 +143,32 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			},
 		},
 		{
-			"1; 2",
+			"1 - 2",
 			{1, 2},
 			{
 				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Pop),
 				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Sub),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 * 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Mul),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 / 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Div),
 				m.instruction_make(context.temp_allocator, .Pop),
 			},
 		},

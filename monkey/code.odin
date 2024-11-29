@@ -8,8 +8,11 @@ Instructions :: distinct [dynamic]byte
 
 Opcode :: enum byte {
 	Constant,
-	Add,
 	Pop,
+	Add,
+	Sub,
+	Mul,
+	Div,
 }
 
 Definition :: struct {
@@ -19,8 +22,11 @@ Definition :: struct {
 
 definitions := [Opcode]Definition {
 	.Constant = {"OpConstant", {2}},
-	.Add      = {"OpAdd", {}},
 	.Pop      = {"OpPop", {}},
+	.Add      = {"OpAdd", {}},
+	.Sub      = {"OpSub", {}},
+	.Mul      = {"OpMul", {}},
+	.Div      = {"OpDiv", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {

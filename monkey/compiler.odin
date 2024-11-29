@@ -113,6 +113,15 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 		case "+":
 			emit(c, .Add)
 
+		case "-":
+			emit(c, .Sub)
+
+		case "*":
+			emit(c, .Mul)
+
+		case "/":
+			emit(c, .Div)
+
 		case:
 			st.builder_reset(&c._sb)
 			fmt.sbprintf(&c._sb, "unknown infix operator '%s'", data.op)

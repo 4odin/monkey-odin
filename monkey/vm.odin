@@ -85,11 +85,9 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			err = vm_push(v, v.constants[const_idx])
 			if err != "" do return
 
-		case .Add:
-			right_val := vm_pop(v).(int)
-			left_val := vm_pop(v).(int)
-
-			vm_push(v, left_val + right_val)
+		case .Add, .Sub, .Mul, .Div:
+			err = vm_exec_bin_op(v, op)
+			if err != "" do return
 
 		case .Pop:
 			vm_pop(v)
@@ -97,6 +95,56 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_exec_bin_int_op :: proc(v: ^VM, op: Opcode, left, right: int) -> (err: string) {
+	result: int
+
+	#partial switch op {
+	case .Add:
+		result = left + right
+
+	case .Sub:
+		result = left - right
+
+	case .Mul:
+		result = left * right
+
+	case .Div:
+		result = left / right
+
+	case:
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "unsupported integer operator: '%d'", op)
+		return st.to_string(v._sb)
+	}
+
+	vm_push(v, result)
+
+	return ""
+}
+
+@(private = "file")
+vm_exec_bin_op :: proc(v: ^VM, op: Opcode) -> (err: string) {
+	right := vm_pop(v)
+	left := vm_pop(v)
+
+	right_val, right_is_int := right.(int)
+	left_val, left_is_int := left.(int)
+
+	if right_is_int && left_is_int {
+		return vm_exec_bin_int_op(v, op, left_val, right_val)
+	}
+
+	st.builder_reset(&v._sb)
+	fmt.sbprintf(
+		&v._sb,
+		"unsupported types for binary operation: '%v', '%v'",
+		ast_type(left),
+		ast_type(right),
+	)
+	return st.to_string(v._sb)
 }
 
 @(private = "file")
