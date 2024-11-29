@@ -1,4 +1,4 @@
-package tests
+package monkey_tests
 
 import "core:fmt"
 import "core:log"
