@@ -34,7 +34,7 @@ test_boolean_object :: proc(expected: bool, actual: m.Object_Base) -> (err: stri
 	}
 
 	if result != expected {
-		return fmt.tprintf("object has wrong value. wants='%d', got='%d'", expected, result)
+		return fmt.tprintf("object has wrong value. wants='%v', got='%v'", expected, result)
 	}
 
 	return ""
@@ -208,6 +208,66 @@ test_compile_boolean_expression :: proc(t: ^testing.T) {
 			{},
 			{
 				m.instruction_make(context.temp_allocator, .False),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 > 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Gt),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 < 2",
+			{2, 1},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Gt),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 == 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Eq),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1 != 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Neq),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"true == false",
+			{},
+			{
+				m.instruction_make(context.temp_allocator, .True),
+				m.instruction_make(context.temp_allocator, .False),
+				m.instruction_make(context.temp_allocator, .Eq),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"true != false",
+			{},
+			{
+				m.instruction_make(context.temp_allocator, .True),
+				m.instruction_make(context.temp_allocator, .False),
+				m.instruction_make(context.temp_allocator, .Neq),
 				m.instruction_make(context.temp_allocator, .Pop),
 			},
 		},

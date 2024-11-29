@@ -111,6 +111,14 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 	#partial switch data in ast {
 	case Node_Infix_Expression:
+		if data.op == "<" {
+			if err = compiler_compile(c, data.right^); err != "" do return
+			if err = compiler_compile(c, data.left^); err != "" do return
+
+			emit(c, .Gt)
+			return
+		}
+
 		if err = compiler_compile(c, data.left^); err != "" do return
 		if err = compiler_compile(c, data.right^); err != "" do return
 
@@ -126,6 +134,15 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 		case "/":
 			emit(c, .Div)
+
+		case ">":
+			emit(c, .Gt)
+
+		case "==":
+			emit(c, .Eq)
+
+		case "!=":
+			emit(c, .Neq)
 
 		case:
 			st.builder_reset(&c._sb)

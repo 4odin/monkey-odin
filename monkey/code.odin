@@ -15,6 +15,9 @@ Opcode :: enum byte {
 	Div,
 	True,
 	False,
+	Eq,
+	Neq,
+	Gt,
 }
 
 Definition :: struct {
@@ -31,6 +34,9 @@ definitions := [Opcode]Definition {
 	.Div      = {"OpDiv", {}},
 	.True     = {"OpTrue", {}},
 	.False    = {"OpFalse", {}},
+	.Eq       = {"OpEqual", {}},
+	.Neq      = {"OpNotEqual", {}},
+	.Gt       = {"OpGreaterThan", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {

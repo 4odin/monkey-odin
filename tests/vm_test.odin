@@ -108,7 +108,27 @@ test_vm_integer_arithmetic :: proc(t: ^testing.T) {
 
 @(test)
 test_vm_boolean_expression :: proc(t: ^testing.T) {
-	tests := []VM_Test_Case{{"true", true}, {"false", false}}
+	tests := []VM_Test_Case {
+		{"true", true},
+		{"false", false},
+		{"1 < 2", true},
+		{"1 > 2", false},
+		{"1 < 1", false},
+		{"1 > 1", false},
+		{"1 == 1", true},
+		{"1 != 1", false},
+		{"1 == 2", false},
+		{"1 != 2", true},
+		{"true == true", true},
+		{"false == false", true},
+		{"true == false", false},
+		{"true != false", true},
+		{"false != true", true},
+		{"(1 < 2) == true", true},
+		{"(1 < 2) == false", false},
+		{"(1 > 2) == true", false},
+		{"(1 > 2) == false", true},
+	}
 
 	defer free_all(context.temp_allocator)
 

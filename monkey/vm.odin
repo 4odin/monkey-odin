@@ -89,6 +89,10 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			err = vm_exec_bin_op(v, op)
 			if err != "" do return
 
+		case .Eq, .Neq, .Gt:
+			err = vm_exec_comp(v, op)
+			if err != "" do return
+
 		case .True:
 			err = vm_push(v, true)
 			if err != "" do return
@@ -103,6 +107,60 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_exec_int_comp :: proc(v: ^VM, op: Opcode, left, right: int) -> (err: string) {
+	result: bool
+
+	#partial switch op {
+	case .Eq:
+		result = right == left
+
+	case .Neq:
+		result = right != left
+
+	case .Gt:
+		result = left > right
+
+	case:
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "unsupported operator: '%d'", op)
+		return st.to_string(v._sb)
+	}
+
+	return vm_push(v, result)
+}
+
+@(private = "file")
+vm_exec_comp :: proc(v: ^VM, op: Opcode) -> (err: string) {
+	right := vm_pop(v)
+	left := vm_pop(v)
+
+	right_val, right_is_int := right.(int)
+	left_val, left_is_int := left.(int)
+
+	if right_is_int && left_is_int {
+		return vm_exec_int_comp(v, op, left_val, right_val)
+	}
+
+	#partial switch op {
+	case .Eq:
+		return vm_push(v, right == left)
+
+	case .Neq:
+		return vm_push(v, right != left)
+	}
+
+	st.builder_reset(&v._sb)
+	fmt.sbprintf(
+		&v._sb,
+		"unsupported operator: %d ('%v', '%v')",
+		op,
+		ast_type(left),
+		ast_type(right),
+	)
+	return st.to_string(v._sb)
 }
 
 @(private = "file")
@@ -128,9 +186,7 @@ vm_exec_bin_int_op :: proc(v: ^VM, op: Opcode, left, right: int) -> (err: string
 		return st.to_string(v._sb)
 	}
 
-	vm_push(v, result)
-
-	return ""
+	return vm_push(v, result)
 }
 
 @(private = "file")
