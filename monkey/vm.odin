@@ -79,35 +79,44 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 
 		switch op {
 		case .Constant:
-			const_idx, _ := read_u16(v.instructions[ip + 1:])
+			const_idx := read_u16(v.instructions[ip + 1:])
 			ip += 2
 
-			err = vm_push(v, v.constants[const_idx])
-			if err != "" do return
+			if err = vm_push(v, v.constants[const_idx]); err != "" do return
 
 		case .Add, .Sub, .Mul, .Div:
-			err = vm_exec_bin_op(v, op)
-			if err != "" do return
+			if err = vm_exec_bin_op(v, op); err != "" do return
 
 		case .Eq, .Neq, .Gt:
-			err = vm_exec_comp(v, op)
-			if err != "" do return
+			if err = vm_exec_comp(v, op); err != "" do return
 
 		case .Not:
-			err = vm_exec_not_op(v)
-			if err != "" do return
+			if err = vm_exec_not_op(v); err != "" do return
 
 		case .Neg:
-			err = vm_exec_neg_op(v)
-			if err != "" do return
+			if err = vm_exec_neg_op(v); err != "" do return
+
+		case .Jmp:
+			pos := int(read_u16(v.instructions[ip + 1:]))
+			ip = pos - 1
+
+		case .JmpIfNot:
+			pos := int(read_u16(v.instructions[ip + 1:]))
+			ip += 2
+
+			condition := vm_pop(v)
+			if !obj_is_truthy(condition) {
+				ip = pos - 1
+			}
+
+		case .Nil:
+			if err = vm_push(v, Obj_Null{}); err != "" do return
 
 		case .True:
-			err = vm_push(v, true)
-			if err != "" do return
+			if err = vm_push(v, true); err != "" do return
 
 		case .False:
-			err = vm_push(v, false)
-			if err != "" do return
+			if err = vm_push(v, false); err != "" do return
 
 		case .Pop:
 			vm_pop(v)
@@ -138,6 +147,9 @@ vm_exec_not_op :: proc(v: ^VM) -> (err: string) {
 	#partial switch operand in o {
 	case bool:
 		return vm_push(v, !operand)
+
+	case Obj_Null:
+		return vm_push(v, true)
 
 	case:
 		return vm_push(v, false)

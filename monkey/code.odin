@@ -20,6 +20,9 @@ Opcode :: enum byte {
 	Gt,
 	Neg,
 	Not,
+	JmpIfNot,
+	Jmp,
+	Nil,
 }
 
 Definition :: struct {
@@ -41,6 +44,9 @@ definitions := [Opcode]Definition {
 	.Gt       = {"OpGreaterThan", {}},
 	.Neg      = {"OpNegate", {}},
 	.Not      = {"OpNot", {}},
+	.JmpIfNot = {"OpJumpIfNotTrue", {2}},
+	.Jmp      = {"OpJump", {2}},
+	.Nil      = {"OpNil", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {
@@ -51,11 +57,7 @@ lookup :: proc(op: Opcode) -> (Definition, bool) {
 	return def, true
 }
 
-instruction_make :: proc(
-	allocator := context.allocator,
-	op: Opcode,
-	operands: ..int,
-) -> Instructions {
+instructions :: proc(allocator := context.allocator, op: Opcode, operands: ..int) -> Instructions {
 	def, ok := lookup(op)
 	if !ok do return {}
 
@@ -147,7 +149,7 @@ read_operands :: proc(
 	for width, i in def.operand_widths {
 		switch width {
 		case 2:
-			val, _ := read_u16(ins[offset:])
+			val := read_u16(ins[offset:])
 			operands[i] = int(val)
 		}
 
@@ -157,6 +159,8 @@ read_operands :: proc(
 	return operands, offset
 }
 
-read_u16 :: proc(ins: []byte) -> (u16, bool) {
-	return endian.get_u16(ins, .Big)
+read_u16 :: proc(ins: []byte) -> u16 {
+	res, _ := endian.get_u16(ins, .Big)
+
+	return res
 }

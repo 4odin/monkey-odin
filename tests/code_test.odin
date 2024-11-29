@@ -27,11 +27,7 @@ test_code_make :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 
 	for test_case, i in tests {
-		instruction := m.instruction_make(
-			context.temp_allocator,
-			test_case.op,
-			..test_case.operands,
-		)
+		instruction := m.instructions(context.temp_allocator, test_case.op, ..test_case.operands)
 
 		if len(instruction) != len(test_case.expected) {
 			log.errorf(
@@ -63,9 +59,9 @@ test_code_make :: proc(t: ^testing.T) {
 @(test)
 test_instructions_string :: proc(t: ^testing.T) {
 	instructions := [?]m.Instructions {
-		m.instruction_make(context.temp_allocator, .Add),
-		m.instruction_make(context.temp_allocator, .Constant, 2),
-		m.instruction_make(context.temp_allocator, .Constant, 65535),
+		m.instructions(context.temp_allocator, .Add),
+		m.instructions(context.temp_allocator, .Constant, 2),
+		m.instructions(context.temp_allocator, .Constant, 65535),
 	}
 
 	defer free_all(context.temp_allocator)
@@ -101,11 +97,7 @@ test_read_operands :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 
 	for test_case, i in tests {
-		instruction := m.instruction_make(
-			context.temp_allocator,
-			test_case.op,
-			..test_case.operands,
-		)
+		instruction := m.instructions(context.temp_allocator, test_case.op, ..test_case.operands)
 
 		def, ok := m.lookup(test_case.op)
 		if !ok {

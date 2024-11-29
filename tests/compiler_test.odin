@@ -139,59 +139,59 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1; 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Pop),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"-1",
 			{1},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Neg),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Neg),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 + 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Add),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Add),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 - 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Sub),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Sub),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 * 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Mul),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Mul),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 / 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Div),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Div),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 	}
@@ -208,85 +208,139 @@ test_compile_boolean_expression :: proc(t: ^testing.T) {
 			"true",
 			{},
 			{
-				m.instruction_make(context.temp_allocator, .True),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .True),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"false",
 			{},
 			{
-				m.instruction_make(context.temp_allocator, .False),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .False),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"!true",
 			{},
 			{
-				m.instruction_make(context.temp_allocator, .True),
-				m.instruction_make(context.temp_allocator, .Not),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .True),
+				m.instructions(context.temp_allocator, .Not),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 > 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Gt),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Gt),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 < 2",
 			{2, 1},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Gt),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Gt),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 == 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Eq),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Eq),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"1 != 2",
 			{1, 2},
 			{
-				m.instruction_make(context.temp_allocator, .Constant, 0),
-				m.instruction_make(context.temp_allocator, .Constant, 1),
-				m.instruction_make(context.temp_allocator, .Neq),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Neq),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"true == false",
 			{},
 			{
-				m.instruction_make(context.temp_allocator, .True),
-				m.instruction_make(context.temp_allocator, .False),
-				m.instruction_make(context.temp_allocator, .Eq),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .True),
+				m.instructions(context.temp_allocator, .False),
+				m.instructions(context.temp_allocator, .Eq),
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 		{
 			"true != false",
 			{},
 			{
-				m.instruction_make(context.temp_allocator, .True),
-				m.instruction_make(context.temp_allocator, .False),
-				m.instruction_make(context.temp_allocator, .Neq),
-				m.instruction_make(context.temp_allocator, .Pop),
+				m.instructions(context.temp_allocator, .True),
+				m.instructions(context.temp_allocator, .False),
+				m.instructions(context.temp_allocator, .Neq),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_if_expression :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"if true { 10 }; 3333;",
+			{10, 3333},
+			{
+				// 0000
+				m.instructions(context.temp_allocator, .True),
+				// 0001
+				m.instructions(context.temp_allocator, .JmpIfNot, 10),
+				// 0004
+				m.instructions(context.temp_allocator, .Constant, 0),
+				// 0007
+				m.instructions(context.temp_allocator, .Jmp, 11),
+				// 0010
+				m.instructions(context.temp_allocator, .Nil),
+				// 0011
+				m.instructions(context.temp_allocator, .Pop),
+				// 0012
+				m.instructions(context.temp_allocator, .Constant, 1),
+				// 0015
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"if true { 10 } else { 20 }; 3333;",
+			{10, 20, 3333},
+			{
+				// 0000
+				m.instructions(context.temp_allocator, .True),
+				// 0001
+				m.instructions(context.temp_allocator, .JmpIfNot, 10),
+				// 0004
+				m.instructions(context.temp_allocator, .Constant, 0),
+				// 0007
+				m.instructions(context.temp_allocator, .Jmp, 13),
+				// 0010
+				m.instructions(context.temp_allocator, .Constant, 1),
+				// 0013
+				m.instructions(context.temp_allocator, .Pop),
+				// 0014
+				m.instructions(context.temp_allocator, .Constant, 2),
+				// 0017
+				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
 	}

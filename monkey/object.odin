@@ -61,6 +61,21 @@ _to_object_base_ptr :: proc(obj: ^Object) -> Object_Base {
 	unreachable()
 }
 
+obj_is_truthy :: proc(obj: Object_Base) -> bool {
+	#partial switch o in obj {
+	case bool:
+		return o
+
+	case Obj_Null:
+		return false
+
+	case:
+		return true
+	}
+
+	unreachable()
+}
+
 obj_is_return :: proc {
 	obj_is_return_ptr,
 	obj_is_return_val,

@@ -14,27 +14,36 @@ Dap_Item :: union {
 	[dynamic]Object_Base,
 }
 
+Emitted_Instruction :: struct {
+	op_code: Opcode,
+	pos:     int,
+}
+
 Bytecode :: struct {
 	instructions: []byte,
 	constants:    []Object_Base,
 }
 
 Compiler :: struct {
-	instructions:  ^Instructions,
-	constants:     ^[dynamic]Object_Base,
+	instructions:         ^Instructions,
+	constants:            ^[dynamic]Object_Base,
+
+	// tracking instructions
+	last_instruction:     Emitted_Instruction,
+	previous_instruction: Emitted_Instruction,
 
 	// methods
-	config:        proc(
+	config:               proc(
 		c: ^Compiler,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	compile:       proc(c: ^Compiler, program: Node_Program) -> (err: string),
-	bytecode:      proc(c: ^Compiler) -> Bytecode,
-	reset:         proc(c: ^Compiler),
+	compile:              proc(c: ^Compiler, program: Node_Program) -> (err: string),
+	bytecode:             proc(c: ^Compiler) -> Bytecode,
+	reset:                proc(c: ^Compiler),
 
 	// Managed
-	using managed: utils.Mem_Manager(Dap_Item),
+	using managed:        utils.Mem_Manager(Dap_Item),
 }
 
 compiler :: proc(allocator := context.allocator) -> Compiler {
@@ -88,10 +97,47 @@ add_instructions :: proc(c: ^Compiler, ins: []byte) -> int {
 
 @(private = "file")
 emit :: proc(c: ^Compiler, op: Opcode, operands: ..int) -> int {
-	ins := instruction_make(c._pool, Opcode(op), ..operands)
+	ins := instructions(c._pool, Opcode(op), ..operands)
 	pos := add_instructions(c, ins[:])
 
+	set_last_instruction(c, op, pos)
+
 	return pos
+}
+
+@(private = "file")
+set_last_instruction :: proc(c: ^Compiler, op: Opcode, pos: int) {
+	previous := c.last_instruction
+	last := Emitted_Instruction{op, pos}
+
+	c.previous_instruction = previous
+	c.last_instruction = last
+}
+
+@(private = "file")
+last_instruction_is_pop :: proc(c: ^Compiler) -> bool {
+	return c.last_instruction.op_code == .Pop
+}
+
+@(private = "file")
+remove_last_pop :: proc(c: ^Compiler) {
+	unordered_remove(c.instructions, c.last_instruction.pos)
+	c.last_instruction = c.previous_instruction
+}
+
+@(private = "file")
+replace_instruction :: proc(c: ^Compiler, pos: int, new_instruction: []byte) {
+	for i := 0; i < len(new_instruction); i += 1 {
+		c.instructions[pos + i] = new_instruction[i]
+	}
+}
+
+@(private = "file")
+change_operand :: proc(c: ^Compiler, op_pos: int, operand: int) {
+	op := Opcode(c.instructions[op_pos])
+	new_instruction := instructions(c._pool, op, operand)
+
+	replace_instruction(c, op_pos, new_instruction[:])
 }
 
 @(private = "file")
@@ -166,6 +212,42 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			err = st.to_string(c._sb)
 		}
 
+	case Node_If_Expression:
+		if err = compiler_compile(c, data.condition^); err != "" do return
+
+		// Emit an `OpJumpIfNotTrue` with bogus value
+		jump_if_not_pos := emit(c, .JmpIfNot, 9999)
+
+		if err = compiler_compile(c, data.consequence); err != "" do return
+
+		if last_instruction_is_pop(c) do remove_last_pop(c)
+
+		// Emit an `OpJump` with a bogus value
+		jump_pos := emit(c, .Jmp, 9999)
+
+		after_consequence_pos := len(c.instructions)
+		change_operand(c, jump_if_not_pos, after_consequence_pos)
+
+		if data.alternative == nil {
+			emit(c, .Nil)
+		} else {
+			if err = compiler_compile(c, data.alternative); err != "" do return
+
+			if last_instruction_is_pop(c) do remove_last_pop(c)
+
+		}
+
+		after_alternative_pos := len(c.instructions)
+		change_operand(c, jump_pos, after_alternative_pos)
+
+	case Node_Block_Expression:
+		for s in data {
+			if err = compiler_compile(c, s); err != "" do return
+
+			if ast_is_expression_statement(s) {
+				emit(c, .Pop)
+			}
+		}
 
 	case int:
 		emit(c, .Constant, add_constant(c, data))
