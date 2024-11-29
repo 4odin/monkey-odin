@@ -13,6 +13,8 @@ Opcode :: enum byte {
 	Sub,
 	Mul,
 	Div,
+	True,
+	False,
 }
 
 Definition :: struct {
@@ -27,6 +29,8 @@ definitions := [Opcode]Definition {
 	.Sub      = {"OpSub", {}},
 	.Mul      = {"OpMul", {}},
 	.Div      = {"OpDiv", {}},
+	.True     = {"OpTrue", {}},
+	.False    = {"OpFalse", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {

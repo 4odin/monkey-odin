@@ -31,6 +31,7 @@ Compiler :: struct {
 	) -> mem.Allocator_Error,
 	compile:       proc(c: ^Compiler, program: Node_Program) -> (err: string),
 	bytecode:      proc(c: ^Compiler) -> Bytecode,
+	reset:         proc(c: ^Compiler),
 
 	// Managed
 	using managed: utils.Mem_Manager(Dap_Item),
@@ -41,6 +42,10 @@ compiler :: proc(allocator := context.allocator) -> Compiler {
 		config = compiler_config,
 		compile = compiler_compile_program,
 		bytecode = compiler_bytecode,
+		reset = proc(c: ^Compiler) {
+			clear(c.instructions)
+			clear(c.constants)
+		},
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
 				switch kind in element {
@@ -131,6 +136,9 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 	case int:
 		emit(c, .Constant, add_constant(c, data))
+
+	case bool:
+		emit(c, .True if data else .False)
 	}
 
 	return

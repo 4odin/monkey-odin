@@ -89,6 +89,14 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			err = vm_exec_bin_op(v, op)
 			if err != "" do return
 
+		case .True:
+			err = vm_push(v, true)
+			if err != "" do return
+
+		case .False:
+			err = vm_push(v, false)
+			if err != "" do return
+
 		case .Pop:
 			vm_pop(v)
 		}

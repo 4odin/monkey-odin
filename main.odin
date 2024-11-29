@@ -150,6 +150,8 @@ main :: proc() {
 
 		program := parser->parse(input)
 		{
+			defer compiler->reset()
+
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)
 				parser->clear_errors()
@@ -163,10 +165,7 @@ main :: proc() {
 			evaluated, ok := evaluator->eval(program, context.temp_allocator)
 			if !ok {
 				fmt.printfln("Evaluation error: %s", evaluated)
-				continue
-			}
-
-			if evaluated != nil {
+			} else if evaluated != nil {
 				st.builder_reset(&sb)
 				monkey.obj_inspect(evaluated, &sb)
 

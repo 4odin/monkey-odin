@@ -22,6 +22,13 @@ test_expected_object :: proc(expected: any, actual: m.Object_Base) -> (err: stri
 		if err != "" {
 			return fmt.tprintf("test_integer_object failed with: %s", err)
 		}
+
+	case bool:
+		expected_value, _ := reflect.as_bool(expected)
+		err = test_boolean_object(expected_value, actual)
+		if err != "" {
+			return fmt.tprintf("test_integer_object failed with: %s", err)
+		}
 	}
 
 	return ""
@@ -93,6 +100,15 @@ test_vm_integer_arithmetic :: proc(t: ^testing.T) {
 		{"5 + 2 * 10", 25},
 		{"5 * (2 + 10)", 60},
 	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_boolean_expression :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case{{"true", true}, {"false", false}}
 
 	defer free_all(context.temp_allocator)
 

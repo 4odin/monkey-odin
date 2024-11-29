@@ -27,6 +27,19 @@ test_integer_object :: proc(expected: int, actual: m.Object_Base) -> (err: strin
 	return ""
 }
 
+test_boolean_object :: proc(expected: bool, actual: m.Object_Base) -> (err: string) {
+	result, ok := actual.(bool)
+	if !ok {
+		return fmt.tprintf("object is not integer. got='%v'", m.obj_type(actual))
+	}
+
+	if result != expected {
+		return fmt.tprintf("object has wrong value. wants='%d', got='%d'", expected, result)
+	}
+
+	return ""
+}
+
 test_constants :: proc(expected: []any, actual: []m.Object_Base) -> (err: string) {
 	if len(expected) != len(actual) {
 		return fmt.tprintf(
@@ -169,6 +182,32 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 				m.instruction_make(context.temp_allocator, .Constant, 0),
 				m.instruction_make(context.temp_allocator, .Constant, 1),
 				m.instruction_make(context.temp_allocator, .Div),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_boolean_expression :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"true",
+			{},
+			{
+				m.instruction_make(context.temp_allocator, .True),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"false",
+			{},
+			{
+				m.instruction_make(context.temp_allocator, .False),
 				m.instruction_make(context.temp_allocator, .Pop),
 			},
 		},
