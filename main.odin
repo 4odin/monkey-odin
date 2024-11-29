@@ -177,13 +177,13 @@ main :: proc() {
 
 			err := compiler->compile(program)
 			if err != "" {
-				fmt.println("Compiler error: %s", err)
+				fmt.printfln("Compiler error: %s", err)
 				continue
 			}
 
 			err = vm->run(compiler->bytecode())
 			if err != "" {
-				fmt.println("Vm error: %s", err)
+				fmt.printfln("Vm error: %s", err)
 				continue
 			}
 
