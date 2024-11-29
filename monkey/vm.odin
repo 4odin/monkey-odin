@@ -106,7 +106,7 @@ vm_push :: proc(v: ^VM, o: Object_Base) -> (err: string) {
 
 		fmt.sbprint(&v._sb, "stack overflow")
 
-		return st.clone_from(st.to_string(v._sb))
+		return st.to_string(v._sb)
 	}
 
 	v.stack[v.sp] = o
