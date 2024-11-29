@@ -129,6 +129,17 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 				m.instruction_make(context.temp_allocator, .Constant, 0),
 				m.instruction_make(context.temp_allocator, .Constant, 1),
 				m.instruction_make(context.temp_allocator, .Add),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"1; 2",
+			{1, 2},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Pop),
+				m.instruction_make(context.temp_allocator, .Constant, 1),
+				m.instruction_make(context.temp_allocator, .Pop),
 			},
 		},
 	}

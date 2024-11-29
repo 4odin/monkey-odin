@@ -75,6 +75,7 @@ main :: proc() {
 	evaluator := monkey.evaluator()
 	compiler := monkey.compiler()
 	vm := monkey.vm()
+
 	when ODIN_DEBUG {
 		// before context allocators, report on any other virtual memory based instances
 		defer {
@@ -149,9 +150,6 @@ main :: proc() {
 
 		program := parser->parse(input)
 		{
-			defer parser->mem_free()
-			defer vm->mem_free()
-
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)
 				parser->clear_errors()
@@ -187,9 +185,9 @@ main :: proc() {
 				continue
 			}
 
-			stack_top := vm->stack_top()
+			last_popped := vm->last_popped_stack_elem()
 			st.builder_reset(&sb)
-			monkey.obj_inspect(stack_top, &sb)
+			monkey.obj_inspect(last_popped, &sb)
 
 			fmt.printfln("Vm Result: %v", st.to_string(sb))
 		}

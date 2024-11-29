@@ -64,8 +64,8 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 				continue
 			}
 
-			stack_elem := vm->stack_top()
-			err = test_expected_object(test_case.expected, stack_elem)
+			last_popped_stack_elem := vm->last_popped_stack_elem()
+			err = test_expected_object(test_case.expected, last_popped_stack_elem)
 			if err != "" {
 				log.errorf(
 					"test[%d] has failed, test expected stack top has failed with: %s",

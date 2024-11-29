@@ -80,6 +80,12 @@ Node_Index_Expression :: struct {
 	index:   ^Node,
 }
 
+ast_is_expression_statement :: proc(ast: Node) -> bool {
+	t := ast_type(ast)
+
+	return t != Node_Program && t != Node_Let_Statement && t != Node_Return_Statement
+}
+
 ast_type :: proc {
 	_ast_type_val,
 	_ast_type_ptr,

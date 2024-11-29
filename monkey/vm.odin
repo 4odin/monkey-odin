@@ -14,24 +14,25 @@ Dap_Item :: union {
 }
 
 VM :: struct {
-	instructions:  []byte,
-	constants:     []Object_Base,
+	instructions:           []byte,
+	constants:              []Object_Base,
 
 	// stack
-	stack:         ^[]Object_Base,
-	sp:            int, // always points to the next value. Top of the stack is stack[sp-1]
+	stack:                  ^[]Object_Base,
+	sp:                     int, // always points to the next value. Top of the stack is stack[sp-1]
 
 	// methods
-	config:        proc(
+	config:                 proc(
 		v: ^VM,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	run:           proc(v: ^VM, bytecode: Bytecode) -> (err: string),
-	stack_top:     proc(v: ^VM) -> Object_Base,
+	run:                    proc(v: ^VM, bytecode: Bytecode) -> (err: string),
+	stack_top:              proc(v: ^VM) -> Object_Base,
+	last_popped_stack_elem: proc(v: ^VM) -> Object_Base,
 
 	// Managed
-	using managed: utils.Mem_Manager(Dap_Item),
+	using managed:          utils.Mem_Manager(Dap_Item),
 }
 
 vm :: proc(allocator := context.allocator) -> VM {
@@ -39,6 +40,7 @@ vm :: proc(allocator := context.allocator) -> VM {
 		config = vm_config,
 		run = vm_run,
 		stack_top = vm_stack_top,
+		last_popped_stack_elem = vm_last_popped_stack_elem,
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
 				switch kind in element {
@@ -88,6 +90,9 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			left_val := vm_pop(v).(int)
 
 			vm_push(v, left_val + right_val)
+
+		case .Pop:
+			vm_pop(v)
 		}
 	}
 
@@ -125,4 +130,9 @@ vm_pop :: proc(v: ^VM) -> Object_Base {
 	v.sp -= 1
 
 	return o
+}
+
+@(private = "file")
+vm_last_popped_stack_elem :: proc(v: ^VM) -> Object_Base {
+	return v.stack[v.sp]
 }

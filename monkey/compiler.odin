@@ -29,7 +29,7 @@ Compiler :: struct {
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	compile:       proc(c: ^Compiler, ast: Node) -> (err: string),
+	compile:       proc(c: ^Compiler, program: Node_Program) -> (err: string),
 	bytecode:      proc(c: ^Compiler) -> Bytecode,
 
 	// Managed
@@ -39,7 +39,7 @@ Compiler :: struct {
 compiler :: proc(allocator := context.allocator) -> Compiler {
 	return {
 		config = compiler_config,
-		compile = compiler_compile,
+		compile = compiler_compile_program,
 		bytecode = compiler_bytecode,
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
@@ -96,39 +96,48 @@ add_constant :: proc(c: ^Compiler, obj: Object_Base) -> int {
 }
 
 @(private = "file")
+compiler_bytecode :: proc(c: ^Compiler) -> Bytecode {
+	return {instructions = c.instructions[:], constants = c.constants[:]}
+}
+
+@(private = "file")
 compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 	err = ""
 
 	#partial switch data in ast {
-	case Node_Program:
-		for s in data {
-			if err = c->compile(s); err != "" do return
-		}
-		return
-
 	case Node_Infix_Expression:
-		if err = c->compile(data.left^); err != "" do return
-		if err = c->compile(data.right^); err != "" do return
+		if err = compiler_compile(c, data.left^); err != "" do return
+		if err = compiler_compile(c, data.right^); err != "" do return
 
 		switch data.op {
 		case "+":
 			emit(c, .Add)
-			return
+
+		case:
+			st.builder_reset(&c._sb)
+			fmt.sbprintf(&c._sb, "unknown infix operator '%s'", data.op)
+			err = st.to_string(c._sb)
 		}
 
-		st.builder_reset(&c._sb)
-		fmt.sbprintf(&c._sb, "unknown infix operator '%s'", data.op)
-		err = st.to_string(c._sb)
 
 	case int:
 		emit(c, .Constant, add_constant(c, data))
-		return
 	}
 
 	return
 }
 
 @(private = "file")
-compiler_bytecode :: proc(c: ^Compiler) -> Bytecode {
-	return {instructions = c.instructions[:], constants = c.constants[:]}
+compiler_compile_program :: proc(c: ^Compiler, program: Node_Program) -> (err: string) {
+	err = ""
+
+	for s in program {
+		if err = compiler_compile(c, s); err != "" do return
+
+		if ast_is_expression_statement(s) {
+			emit(c, .Pop)
+		}
+	}
+
+	return
 }

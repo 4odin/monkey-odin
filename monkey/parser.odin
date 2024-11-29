@@ -522,8 +522,6 @@ parse_program :: proc(p: ^Parser, input: string) -> Node_Program {
 	next_token(p)
 	next_token(p)
 
-	if ok, _, _ := p->mem_is_freed(); ok do p->mem_init()
-
 	program := utils.register_in_pool(&p.managed, Node_Program)
 
 	for p.cur_token.type != .EOF {
