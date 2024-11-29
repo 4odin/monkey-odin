@@ -93,6 +93,14 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			err = vm_exec_comp(v, op)
 			if err != "" do return
 
+		case .Not:
+			err = vm_exec_not_op(v)
+			if err != "" do return
+
+		case .Neg:
+			err = vm_exec_neg_op(v)
+			if err != "" do return
+
 		case .True:
 			err = vm_push(v, true)
 			if err != "" do return
@@ -107,6 +115,35 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_exec_neg_op :: proc(v: ^VM) -> (err: string) {
+	o := vm_pop(v)
+
+	operand, ok := o.(int)
+	if !ok {
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "unsupported type for negation: '%v'", ast_type(o))
+		return st.to_string(v._sb)
+	}
+
+	return vm_push(v, -operand)
+}
+
+@(private = "file")
+vm_exec_not_op :: proc(v: ^VM) -> (err: string) {
+	o := vm_pop(v)
+
+	#partial switch operand in o {
+	case bool:
+		return vm_push(v, !operand)
+
+	case:
+		return vm_push(v, false)
+	}
+
+	unreachable()
 }
 
 @(private = "file")

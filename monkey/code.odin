@@ -18,6 +18,8 @@ Opcode :: enum byte {
 	Eq,
 	Neq,
 	Gt,
+	Neg,
+	Not,
 }
 
 Definition :: struct {
@@ -37,6 +39,8 @@ definitions := [Opcode]Definition {
 	.Eq       = {"OpEqual", {}},
 	.Neq      = {"OpNotEqual", {}},
 	.Gt       = {"OpGreaterThan", {}},
+	.Neg      = {"OpNegate", {}},
+	.Not      = {"OpNot", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {

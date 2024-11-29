@@ -150,6 +150,22 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			err = st.to_string(c._sb)
 		}
 
+	case Node_Prefix_Expression:
+		if err = compiler_compile(c, data.operand^); err != "" do return
+
+		switch data.op {
+		case "!":
+			emit(c, .Not)
+
+		case "-":
+			emit(c, .Neg)
+
+		case:
+			st.builder_reset(&c._sb)
+			fmt.sbprintf(&c._sb, "unknown prefix operator '%s'", data.op)
+			err = st.to_string(c._sb)
+		}
+
 
 	case int:
 		emit(c, .Constant, add_constant(c, data))

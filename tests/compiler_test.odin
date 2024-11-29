@@ -146,6 +146,15 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			},
 		},
 		{
+			"-1",
+			{1},
+			{
+				m.instruction_make(context.temp_allocator, .Constant, 0),
+				m.instruction_make(context.temp_allocator, .Neg),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
 			"1 + 2",
 			{1, 2},
 			{
@@ -208,6 +217,15 @@ test_compile_boolean_expression :: proc(t: ^testing.T) {
 			{},
 			{
 				m.instruction_make(context.temp_allocator, .False),
+				m.instruction_make(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"!true",
+			{},
+			{
+				m.instruction_make(context.temp_allocator, .True),
+				m.instruction_make(context.temp_allocator, .Not),
 				m.instruction_make(context.temp_allocator, .Pop),
 			},
 		},
