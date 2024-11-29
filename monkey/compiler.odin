@@ -2,6 +2,7 @@ package monkey_odin
 
 import "core:fmt"
 import "core:mem"
+import st "core:strings"
 
 import "../utils"
 
@@ -103,16 +104,28 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 		for s in data {
 			if err = c->compile(s); err != "" do return
 		}
+		return
 
 	case Node_Infix_Expression:
 		if err = c->compile(data.left^); err != "" do return
 		if err = c->compile(data.right^); err != "" do return
 
+		switch data.op {
+		case "+":
+			emit(c, .Add)
+			return
+		}
+
+		st.builder_reset(&c._sb)
+		fmt.sbprintf(&c._sb, "unknown infix operator '%s'", data.op)
+		err = st.to_string(c._sb)
+
 	case int:
 		emit(c, .Constant, add_constant(c, data))
+		return
 	}
 
-	return ""
+	return
 }
 
 @(private = "file")

@@ -22,7 +22,7 @@ test_code_make :: proc(t: ^testing.T) {
 		op:       m.Opcode,
 		operands: []int,
 		expected: []byte,
-	}{{.Constant, {65534}, {u8(m.Opcode.Constant), 255, 254}}}
+	}{{.Constant, {65534}, {u8(m.Opcode.Constant), 255, 254}}, {.Add, {}, {u8(m.Opcode.Add)}}}
 
 	defer free_all(context.temp_allocator)
 
@@ -63,16 +63,16 @@ test_code_make :: proc(t: ^testing.T) {
 @(test)
 test_instructions_string :: proc(t: ^testing.T) {
 	instructions := [?]m.Instructions {
-		m.instruction_make(context.temp_allocator, .Constant, 1),
+		m.instruction_make(context.temp_allocator, .Add),
 		m.instruction_make(context.temp_allocator, .Constant, 2),
 		m.instruction_make(context.temp_allocator, .Constant, 65535),
 	}
 
 	defer free_all(context.temp_allocator)
 
-	expected := `0000 OpConstant 1
-0003 OpConstant 2
-0006 OpConstant 65535
+	expected := `0000 OpAdd
+0001 OpConstant 2
+0004 OpConstant 65535
 `
 
 

@@ -8,6 +8,7 @@ Instructions :: distinct [dynamic]byte
 
 Opcode :: enum byte {
 	Constant,
+	Add,
 }
 
 Definition :: struct {
@@ -17,6 +18,7 @@ Definition :: struct {
 
 definitions := [Opcode]Definition {
 	.Constant = {"OpConstant", {2}},
+	.Add      = {"OpAdd", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {
@@ -71,6 +73,10 @@ format_instruction :: proc(sb: ^st.Builder, def: Definition, operands: []int) {
 	}
 
 	switch operand_count {
+	case 0:
+		fmt.sbprint(sb, def.name)
+		return
+
 	case 1:
 		fmt.sbprintf(sb, "%s %d", def.name, operands[0])
 		return

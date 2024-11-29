@@ -84,6 +84,12 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 
 			err = vm_push(v, v.constants[const_idx])
 			if err != "" do return
+
+		case .Add:
+			right_val := vm_pop(v).(int)
+			left_val := vm_pop(v).(int)
+
+			vm_push(v, left_val + right_val)
 		}
 	}
 
@@ -113,4 +119,12 @@ vm_push :: proc(v: ^VM, o: Object_Base) -> (err: string) {
 	v.sp += 1
 
 	return ""
+}
+
+@(private = "file")
+vm_pop :: proc(v: ^VM) -> Object_Base {
+	o := v.stack[v.sp - 1]
+	v.sp -= 1
+
+	return o
 }

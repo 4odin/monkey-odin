@@ -80,7 +80,7 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 
 @(test)
 test_vm_integer_arithmetic :: proc(t: ^testing.T) {
-	tests := []VM_Test_Case{{"1", 1}, {"2", 2}, {"1 + 2", 2}}
+	tests := []VM_Test_Case{{"1", 1}, {"2", 2}, {"1 + 2", 3}}
 
 	defer free_all(context.temp_allocator)
 
