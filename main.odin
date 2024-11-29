@@ -73,8 +73,10 @@ main :: proc() {
 
 	parser := monkey.parser()
 	evaluator := monkey.evaluator()
+	compiler := monkey.compiler()
+	vm := monkey.vm()
 	when ODIN_DEBUG {
-		// before context allocators, report on parser and other virtual memory based instances
+		// before context allocators, report on any other virtual memory based instances
 		defer {
 			if ok, arena, dyn_arr_pool := parser->mem_is_freed(); !ok {
 				fmt.eprintfln(
@@ -87,6 +89,22 @@ main :: proc() {
 			if ok, arena, dyn_arr_pool := evaluator->mem_is_freed(); !ok {
 				fmt.eprintfln(
 					"evaluator has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
+					arena,
+					dyn_arr_pool,
+				)
+			}
+
+			if ok, arena, dyn_arr_pool := compiler->mem_is_freed(); !ok {
+				fmt.eprintfln(
+					"compiler has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
+					arena,
+					dyn_arr_pool,
+				)
+			}
+
+			if ok, arena, dyn_arr_pool := vm->mem_is_freed(); !ok {
+				fmt.eprintfln(
+					"vm has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
 					arena,
 					dyn_arr_pool,
 				)
@@ -109,6 +127,12 @@ main :: proc() {
 	evaluator->config()
 	defer evaluator->free()
 
+	compiler->config()
+	defer compiler->mem_free()
+
+	vm->config()
+	defer vm->mem_free()
+
 	for {
 		fmt.printf("%s%s ", username, PROMPT)
 
@@ -126,6 +150,7 @@ main :: proc() {
 		program := parser->parse(input)
 		{
 			defer parser->mem_free()
+			defer vm->mem_free()
 
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)
@@ -147,8 +172,26 @@ main :: proc() {
 				st.builder_reset(&sb)
 				monkey.obj_inspect(evaluated, &sb)
 
-				fmt.printfln("Result: %v", st.to_string(sb))
+				fmt.printfln("Evaluator Result: %v", st.to_string(sb))
 			}
+
+			err := compiler->compile(program)
+			if err != "" {
+				fmt.println("Compiler error: %s", err)
+				continue
+			}
+
+			err = vm->run(compiler->bytecode())
+			if err != "" {
+				fmt.println("Vm error: %s", err)
+				continue
+			}
+
+			stack_top := vm->stack_top()
+			st.builder_reset(&sb)
+			monkey.obj_inspect(stack_top, &sb)
+
+			fmt.printfln("Vm Result: %v", st.to_string(sb))
 		}
 	}
 }

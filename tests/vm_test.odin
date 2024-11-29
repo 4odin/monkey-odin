@@ -54,10 +54,10 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 			}
 
 			vm := m.vm()
-			vm->config(compiler->bytecode())
+			vm->config()
 			defer vm->mem_free()
 
-			err = vm->run()
+			err = vm->run(compiler->bytecode())
 			if err != "" {
 				log.errorf("test[%d] has failed, vm has error: %s", i, err)
 				testing.fail(t)

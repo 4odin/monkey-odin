@@ -24,11 +24,10 @@ VM :: struct {
 	// methods
 	config:        proc(
 		v: ^VM,
-		bytecode: Bytecode,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	run:           proc(v: ^VM) -> (err: string),
+	run:           proc(v: ^VM, bytecode: Bytecode) -> (err: string),
 	stack_top:     proc(v: ^VM) -> Object_Base,
 
 	// Managed
@@ -58,7 +57,6 @@ vm :: proc(allocator := context.allocator) -> VM {
 @(private = "file")
 vm_config :: proc(
 	v: ^VM,
-	bytecode: Bytecode,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
@@ -66,14 +64,14 @@ vm_config :: proc(
 
 	if err == .None do v.stack = utils.register_in_pool(&v.managed, []Object_Base, STACK_SIZE)
 
-	v.instructions = bytecode.instructions
-	v.constants = bytecode.constants
-
 	return err
 }
 
 @(private = "file")
-vm_run :: proc(v: ^VM) -> (err: string) {
+vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
+	v.instructions = bytecode.instructions
+	v.constants = bytecode.constants
+
 	for ip := 0; ip < len(v.instructions); ip += 1 {
 		op := Opcode(v.instructions[ip])
 
