@@ -14,29 +14,32 @@ VM_Test_Case :: struct {
 }
 
 test_expected_object :: proc(expected: any, actual: m.Object_Base) -> (err: string) {
+	err = ""
 	_, t := reflect.any_data(expected)
 	switch t {
 	case int:
 		expected_value, _ := reflect.as_int(expected)
 		err = test_integer_object(expected_value, actual)
-		if err != "" {
-			return fmt.tprintf("test_integer_object failed with: %s", err)
-		}
 
 	case bool:
 		expected_value, _ := reflect.as_bool(expected)
 		err = test_boolean_object(expected_value, actual)
-		if err != "" {
-			return fmt.tprintf("test_boolean_object failed with: %s", err)
-		}
+
+	case string:
+		expected_value, _ := reflect.as_string(expected)
+		err = test_string_object(expected_value, actual)
 
 	case nil:
 		if m.obj_type(actual) != m.Obj_Null {
-			return fmt.tprintf("object is not Obj_Null, got='%v'", m.obj_type(actual))
+			err = fmt.tprintf("object is not Obj_Null, got='%v'", m.obj_type(actual))
 		}
 	}
 
-	return ""
+	if err != "" {
+		err = fmt.tprintf("test_expected_object on '%v' failed with: %s", t, err)
+	}
+
+	return
 }
 
 run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
@@ -114,7 +117,7 @@ test_vm_integer_arithmetic :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_vm_boolean_expression :: proc(t: ^testing.T) {
+test_vm_boolean_expressions :: proc(t: ^testing.T) {
 	tests := []VM_Test_Case {
 		{"true", true},
 		{"false", false},
@@ -149,7 +152,7 @@ test_vm_boolean_expression :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_vm_if_expression :: proc(t: ^testing.T) {
+test_vm_if_expressions :: proc(t: ^testing.T) {
 	tests := []VM_Test_Case {
 		{"if true { 10 }", 10},
 		{"if false { 10 }", nil},
@@ -174,6 +177,19 @@ test_vm_global_let_statement :: proc(t: ^testing.T) {
 		{"let one = 1; one", 1},
 		{"let one = 1; let two = 2; one + two", 3},
 		{"let one = 1; let two = one + one; one + two", 3},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_string_expressions :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{`"monkey`, "monkey"},
+		{`"mon" + "key"`, "monkey"},
+		{`"mon" + "key" + "banana"`, "monkeybanana"},
 	}
 
 	defer free_all(context.temp_allocator)

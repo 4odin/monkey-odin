@@ -286,6 +286,10 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 	case bool:
 		emit(c, .True if data else .False)
+
+	case string:
+		string_cpy, _ := st.clone(data, c._pool)
+		emit(c, .Constant, add_constant(c, string_cpy))
 	}
 
 	return

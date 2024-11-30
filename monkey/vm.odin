@@ -259,6 +259,25 @@ vm_exec_bin_int_op :: proc(v: ^VM, op: Opcode, left, right: int) -> (err: string
 }
 
 @(private = "file")
+vm_exec_bin_str_op :: proc(v: ^VM, op: Opcode, left, right: string) -> (err: string) {
+	result: string
+
+	#partial switch op {
+	case .Add:
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "%s%s", left, right)
+		result = st.clone(st.to_string(v._sb), v._pool)
+
+	case:
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "unsupported string operator: '%d'", op)
+		return st.to_string(v._sb)
+	}
+
+	return vm_push(v, result)
+}
+
+@(private = "file")
 vm_exec_bin_op :: proc(v: ^VM, op: Opcode) -> (err: string) {
 	right := vm_pop(v)
 	left := vm_pop(v)
@@ -268,6 +287,8 @@ vm_exec_bin_op :: proc(v: ^VM, op: Opcode) -> (err: string) {
 
 	if right_is_int && left_is_int {
 		return vm_exec_bin_int_op(v, op, left_val, right_val)
+	} else if obj_type(right) == string && obj_type(left) == string {
+		return vm_exec_bin_str_op(v, op, left.(string), right.(string))
 	}
 
 	st.builder_reset(&v._sb)

@@ -30,11 +30,24 @@ test_integer_object :: proc(expected: int, actual: m.Object_Base) -> (err: strin
 test_boolean_object :: proc(expected: bool, actual: m.Object_Base) -> (err: string) {
 	result, ok := actual.(bool)
 	if !ok {
-		return fmt.tprintf("object is not integer. got='%v'", m.obj_type(actual))
+		return fmt.tprintf("object is not boolean. got='%v'", m.obj_type(actual))
 	}
 
 	if result != expected {
 		return fmt.tprintf("object has wrong value. wants='%v', got='%v'", expected, result)
+	}
+
+	return ""
+}
+
+test_string_object :: proc(expected: string, actual: m.Object_Base) -> (err: string) {
+	result, ok := actual.(string)
+	if !ok {
+		return fmt.tprintf("object is not string. got='%v'", m.obj_type(actual))
+	}
+
+	if result != expected {
+		return fmt.tprintf("object has wrong value. wants='%s', got='%s'", expected, result)
 	}
 
 	return ""
@@ -51,13 +64,19 @@ test_constants :: proc(expected: []any, actual: []m.Object_Base) -> (err: string
 
 	for constant, i in expected {
 		_, t := reflect.any_data(constant)
+		err = ""
 		switch t {
 		case int:
 			constant_value, _ := reflect.as_int(constant)
 			err = test_integer_object(constant_value, actual[i])
-			if err != "" {
-				return fmt.tprintf("constant '%d' - test_integer_object failed with: %s", i, err)
-			}
+
+		case string:
+			constant_value, _ := reflect.as_string(constant)
+			err = test_string_object(constant_value, actual[i])
+		}
+
+		if err != "" {
+			return fmt.tprintf("constant '%d' - testing '%s' object failed with: %v", t, i, err)
 		}
 	}
 
@@ -202,7 +221,7 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 }
 
 @(test)
-test_compile_boolean_expression :: proc(t: ^testing.T) {
+test_compile_boolean_expressions :: proc(t: ^testing.T) {
 	tests := [?]Compiler_Test_Case {
 		{
 			"true",
@@ -382,6 +401,34 @@ test_compile_global_let_statements :: proc(t: ^testing.T) {
 				m.instructions(context.temp_allocator, .Get_G, 0),
 				m.instructions(context.temp_allocator, .Set_G, 1),
 				m.instructions(context.temp_allocator, .Get_G, 1),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_string_expressions :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			`"monkey"`,
+			{"monkey"},
+			{
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			`"mon" + "key"`,
+			{"mon", "key"},
+			{
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Add),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
