@@ -104,7 +104,7 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 
 			compiler := m.compiler()
 			compiler->config()
-			defer compiler->mem_free()
+			defer compiler->free()
 
 			err := compiler->compile(program)
 			if err != "" {
@@ -340,6 +340,48 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0014
 				m.instructions(context.temp_allocator, .Constant, 2),
 				// 0017
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_global_let_statements :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"let one = 1; let two = 2;",
+			{1, 2},
+			{
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Set_G, 0),
+				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Set_G, 1),
+			},
+		},
+		{
+			"let one = 1; one;",
+			{1},
+			{
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Set_G, 0),
+				m.instructions(context.temp_allocator, .Get_G, 0),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"let one = 1; let two = one; two;",
+			{1},
+			{
+				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Set_G, 0),
+				m.instructions(context.temp_allocator, .Get_G, 0),
+				m.instructions(context.temp_allocator, .Set_G, 1),
+				m.instructions(context.temp_allocator, .Get_G, 1),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},

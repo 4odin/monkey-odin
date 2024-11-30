@@ -129,7 +129,7 @@ main :: proc() {
 	defer evaluator->free()
 
 	compiler->config()
-	defer compiler->mem_free()
+	defer compiler->free()
 
 	vm->config()
 	defer vm->mem_free()

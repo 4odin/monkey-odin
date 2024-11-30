@@ -56,7 +56,7 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 
 			compiler := m.compiler()
 			compiler->config()
-			defer compiler->mem_free()
+			defer compiler->free()
 
 			err := compiler->compile(program)
 			if err != "" {
@@ -161,6 +161,19 @@ test_vm_if_expression :: proc(t: ^testing.T) {
 		{"if 1 < 2 { 10 } else { 20 }", 10},
 		{"if 1 > 2 { 10 } else { 20 }", 20},
 		{"if (if false { 10 }) { 10 } else { 20 }", 20},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_global_let_statement :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{"let one = 1; one", 1},
+		{"let one = 1; let two = 2; one + two", 3},
+		{"let one = 1; let two = one + one; one + two", 3},
 	}
 
 	defer free_all(context.temp_allocator)

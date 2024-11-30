@@ -23,6 +23,8 @@ Opcode :: enum byte {
 	Jmp_If_Not,
 	Jmp,
 	Nil,
+	Get_G,
+	Set_G,
 }
 
 Definition :: struct {
@@ -47,6 +49,8 @@ definitions := [Opcode]Definition {
 	.Jmp_If_Not = {"OpJumpIfNotTrue", {2}},
 	.Jmp        = {"OpJump", {2}},
 	.Nil        = {"OpNil", {}},
+	.Get_G      = {"OpGetGlobal", {2}},
+	.Set_G      = {"OpSetGlobal", {2}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {

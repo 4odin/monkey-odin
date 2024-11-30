@@ -8,6 +8,8 @@ import "../utils"
 
 STACK_SIZE :: 2048
 
+GLOBALS_SIZE :: 65536
+
 @(private = "file")
 Dap_Item :: union {
 	[]Object_Base,
@@ -16,6 +18,9 @@ Dap_Item :: union {
 VM :: struct {
 	instructions:           []byte,
 	constants:              []Object_Base,
+
+	// storage
+	globals:                ^[]Object_Base,
 
 	// stack
 	stack:                  ^[]Object_Base,
@@ -64,7 +69,10 @@ vm_config :: proc(
 ) -> mem.Allocator_Error {
 	err := v->mem_config(pool_reserved_block_size, dyn_arr_reserved)
 
-	if err == .None do v.stack = utils.register_in_pool(&v.managed, []Object_Base, STACK_SIZE)
+	if err == .None {
+		v.stack = utils.register_in_pool(&v.managed, []Object_Base, STACK_SIZE)
+		v.globals = utils.register_in_pool(&v.managed, []Object_Base, GLOBALS_SIZE)
+	}
 
 	return err
 }
@@ -108,6 +116,18 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			if !obj_is_truthy(condition) {
 				ip = pos - 1
 			}
+
+		case .Set_G:
+			global_index := read_u16(v.instructions[ip + 1:])
+			ip += 2
+
+			v.globals[global_index] = vm_pop(v)
+
+		case .Get_G:
+			global_index := read_u16(v.instructions[ip + 1:])
+			ip += 2
+
+			if err = vm_push(v, v.globals[global_index]); err != "" do return
 
 		case .Nil:
 			if err = vm_push(v, Obj_Null{}); err != "" do return

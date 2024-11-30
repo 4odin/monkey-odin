@@ -27,6 +27,7 @@ Bytecode :: struct {
 Compiler :: struct {
 	instructions:         ^Instructions,
 	constants:            ^[dynamic]Object_Base,
+	symbol_table:         Symbol_Table,
 
 	// tracking instructions
 	last_instruction:     Emitted_Instruction,
@@ -40,7 +41,8 @@ Compiler :: struct {
 	) -> mem.Allocator_Error,
 	compile:              proc(c: ^Compiler, program: Node_Program) -> (err: string),
 	bytecode:             proc(c: ^Compiler) -> Bytecode,
-	reset:                proc(c: ^Compiler),
+	reset:                proc(c: ^Compiler, keep_state := true),
+	free:                 proc(c: ^Compiler),
 
 	// Managed
 	using managed:        utils.Mem_Manager(Dap_Item),
@@ -51,9 +53,17 @@ compiler :: proc(allocator := context.allocator) -> Compiler {
 		config = compiler_config,
 		compile = compiler_compile_program,
 		bytecode = compiler_bytecode,
-		reset = proc(c: ^Compiler) {
+		reset = proc(c: ^Compiler, keep_state := true) {
 			clear(c.instructions)
-			clear(c.constants)
+
+			if !keep_state {
+				clear(c.constants)
+				c.symbol_table->reset()
+			}
+		},
+		free = proc(c: ^Compiler) {
+			c->mem_free()
+			c.symbol_table->free()
 		},
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
@@ -81,8 +91,12 @@ compiler_config :: proc(
 ) -> mem.Allocator_Error {
 	err := c->mem_config(pool_reserved_block_size, dyn_arr_reserved)
 
-	c.instructions = utils.register_in_pool(&c.managed, Instructions)
-	c.constants = utils.register_in_pool(&c.managed, [dynamic]Object_Base)
+	c.symbol_table = symbol_table()
+
+	if err == .None {
+		c.instructions = utils.register_in_pool(&c.managed, Instructions)
+		c.constants = utils.register_in_pool(&c.managed, [dynamic]Object_Base)
+	}
 
 	return err
 }
@@ -156,6 +170,24 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 	err = ""
 
 	#partial switch data in ast {
+	case Node_Let_Statement:
+		if err = compiler_compile(c, data.value^); err != "" do return
+		sym_name_copy, _ := st.clone(data.name, c._pool)
+		symbol := c.symbol_table->define(sym_name_copy)
+
+		emit(c, .Set_G, symbol.index)
+
+	case Node_Identifier:
+		symbol, ok := c.symbol_table->resolve(data.value)
+		if !ok {
+			st.builder_reset(&c._sb)
+			fmt.sbprintf(&c._sb, "undefined symbol '%s'", data.value)
+			err = st.to_string(c._sb)
+			return
+		}
+
+		emit(c, .Get_G, symbol.index)
+
 	case Node_Infix_Expression:
 		if data.op == "<" {
 			if err = compiler_compile(c, data.right^); err != "" do return
