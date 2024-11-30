@@ -216,7 +216,7 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 		if err = compiler_compile(c, data.condition^); err != "" do return
 
 		// Emit an `OpJumpIfNotTrue` with bogus value
-		jump_if_not_pos := emit(c, .JmpIfNot, 9999)
+		jump_if_not_pos := emit(c, .Jmp_If_Not, 9999)
 
 		if err = compiler_compile(c, data.consequence); err != "" do return
 

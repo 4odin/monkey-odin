@@ -306,7 +306,7 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0000
 				m.instructions(context.temp_allocator, .True),
 				// 0001
-				m.instructions(context.temp_allocator, .JmpIfNot, 10),
+				m.instructions(context.temp_allocator, .Jmp_If_Not, 10),
 				// 0004
 				m.instructions(context.temp_allocator, .Constant, 0),
 				// 0007
@@ -328,7 +328,7 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0000
 				m.instructions(context.temp_allocator, .True),
 				// 0001
-				m.instructions(context.temp_allocator, .JmpIfNot, 10),
+				m.instructions(context.temp_allocator, .Jmp_If_Not, 10),
 				// 0004
 				m.instructions(context.temp_allocator, .Constant, 0),
 				// 0007

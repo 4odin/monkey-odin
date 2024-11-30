@@ -100,7 +100,7 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			pos := int(read_u16(v.instructions[ip + 1:]))
 			ip = pos - 1
 
-		case .JmpIfNot:
+		case .Jmp_If_Not:
 			pos := int(read_u16(v.instructions[ip + 1:]))
 			ip += 2
 

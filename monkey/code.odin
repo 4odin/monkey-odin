@@ -20,7 +20,7 @@ Opcode :: enum byte {
 	Gt,
 	Neg,
 	Not,
-	JmpIfNot,
+	Jmp_If_Not,
 	Jmp,
 	Nil,
 }
@@ -31,22 +31,22 @@ Definition :: struct {
 }
 
 definitions := [Opcode]Definition {
-	.Constant = {"OpConstant", {2}},
-	.Pop      = {"OpPop", {}},
-	.Add      = {"OpAdd", {}},
-	.Sub      = {"OpSub", {}},
-	.Mul      = {"OpMul", {}},
-	.Div      = {"OpDiv", {}},
-	.True     = {"OpTrue", {}},
-	.False    = {"OpFalse", {}},
-	.Eq       = {"OpEqual", {}},
-	.Neq      = {"OpNotEqual", {}},
-	.Gt       = {"OpGreaterThan", {}},
-	.Neg      = {"OpNegate", {}},
-	.Not      = {"OpNot", {}},
-	.JmpIfNot = {"OpJumpIfNotTrue", {2}},
-	.Jmp      = {"OpJump", {2}},
-	.Nil      = {"OpNil", {}},
+	.Constant   = {"OpConstant", {2}},
+	.Pop        = {"OpPop", {}},
+	.Add        = {"OpAdd", {}},
+	.Sub        = {"OpSub", {}},
+	.Mul        = {"OpMul", {}},
+	.Div        = {"OpDiv", {}},
+	.True       = {"OpTrue", {}},
+	.False      = {"OpFalse", {}},
+	.Eq         = {"OpEqual", {}},
+	.Neq        = {"OpNotEqual", {}},
+	.Gt         = {"OpGreaterThan", {}},
+	.Neg        = {"OpNegate", {}},
+	.Not        = {"OpNot", {}},
+	.Jmp_If_Not = {"OpJumpIfNotTrue", {2}},
+	.Jmp        = {"OpJump", {2}},
+	.Nil        = {"OpNil", {}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {
