@@ -123,6 +123,12 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 		case .Add, .Sub, .Mul, .Div:
 			if err = vm_exec_bin_op(v, op); err != "" do return
 
+		case .Idx:
+			index := vm_pop(v)
+			operand := vm_pop(v)
+
+			if err = vm_exec_idx_expr(v, operand, index); err != "" do return
+
 		case .Eq, .Neq, .Gt:
 			if err = vm_exec_comp(v, op); err != "" do return
 
@@ -175,6 +181,37 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 }
 
 @(private = "file")
+vm_exec_ht_idx :: proc(v: ^VM, ht: ^Obj_Hash_Table, key: string) -> (err: string) {
+	value, key_exists := ht[key]
+
+	if !key_exists do return vm_push(v, Obj_Null{})
+
+	return vm_push(v, value)
+}
+
+@(private = "file")
+vm_exec_arr_idx :: proc(v: ^VM, arr: ^Obj_Array, index: int) -> (err: string) {
+	max := len(arr) - 1
+
+	if index < 0 || index > max do return vm_push(v, Obj_Null{})
+
+	return vm_push(v, arr[index])
+}
+
+@(private = "file")
+vm_exec_idx_expr :: proc(v: ^VM, operand, index: Object_Base) -> (err: string) {
+	if obj_type(operand) == ^Obj_Array && obj_type(index) == int {
+		return vm_exec_arr_idx(v, operand.(^Obj_Array), index.(int))
+	} else if obj_type(operand) == ^Obj_Hash_Table && obj_type(index) == string {
+		return vm_exec_ht_idx(v, operand.(^Obj_Hash_Table), index.(string))
+	}
+
+	st.builder_reset(&v._sb)
+	fmt.sbprintf(&v._sb, "unsupported index operation: '%v'", ast_type(operand))
+	return st.to_string(v._sb)
+}
+
+@(private = "file")
 vm_build_hash_table :: proc(v: ^VM, start_index, end_index: int) -> (Object_Base, string) {
 	ht := utils.register_in_pool(&v.managed, Obj_Hash_Table, (end_index - start_index) / 2)
 
@@ -184,7 +221,9 @@ vm_build_hash_table :: proc(v: ^VM, start_index, end_index: int) -> (Object_Base
 
 		key_str, key_is_valid := key.(string)
 		if !key_is_valid {
-			return nil, "some error"
+			st.builder_reset(&v._sb)
+			fmt.sbprintf(&v._sb, "unsupported key type in hash table: '%v'", ast_type(key))
+			return nil, st.to_string(v._sb)
 		}
 
 		ht[st.clone(key_str, v._pool)] = value

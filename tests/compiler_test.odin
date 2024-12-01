@@ -530,3 +530,40 @@ test_compile_hash_table_literals :: proc(t: ^testing.T) {
 
 	run_compiler_tests(t, tests[:])
 }
+
+@(test)
+test_compile_index_expressions :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"[1, 2, 3][1 + 1]",
+			{1, 2, 3, 1, 1},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Arr, 3),
+				m.instructions(context.temp_allocator, .Cnst, 3),
+				m.instructions(context.temp_allocator, .Cnst, 4),
+				m.instructions(context.temp_allocator, .Add),
+				m.instructions(context.temp_allocator, .Idx),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			`{"name": "Navid"}["name"]`,
+			{"name", "Navid", "name"},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Ht, 2),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Idx),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}

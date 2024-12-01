@@ -307,6 +307,11 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 		emit(c, .Ht, len(data) * 2)
 
+	case Node_Index_Expression:
+		if err = compiler_compile(c, data.operand^); err != "" do return
+		if err = compiler_compile(c, data.index^); err != "" do return
+
+		emit(c, .Idx)
 
 	case int:
 		emit(c, .Cnst, add_constant(c, data))

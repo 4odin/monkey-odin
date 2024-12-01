@@ -275,3 +275,22 @@ test_vm_hash_table_literals :: proc(t: ^testing.T) {
 
 	run_vm_tests(t, tests)
 }
+
+@(test)
+test_vm_index_expressios :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{"[1, 2, 3][1]", 2},
+		{"[1, 2, 3][0 + 2]", 3},
+		{"[[1, 1, 1]][0][0]", 1},
+		{"[][0]", nil},
+		{"[1, 2, 3][99]", nil},
+		{"[1][-1]", nil},
+		{`{"name": "Navid"}["name"]`, "Navid"},
+		{`{"name": "Navid"}["age"]`, nil},
+		{`{}["name"]`, nil},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
