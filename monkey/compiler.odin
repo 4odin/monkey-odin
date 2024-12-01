@@ -2,6 +2,7 @@ package monkey_odin
 
 import "core:fmt"
 import "core:mem"
+import "core:slice"
 import st "core:strings"
 
 import "../utils"
@@ -287,6 +288,25 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 		}
 
 		emit(c, .Arr, len(data))
+
+	case Node_Hash_Table_Literal:
+		keys := make([]string, len(data), c._pool)
+		i := 0
+		for key in data {
+			keys[i] = key
+			i += 1
+		}
+
+		slice.reverse_sort(keys) // for tests only (not needed)
+
+
+		for k in keys {
+			if err = compiler_compile(c, k); err != "" do return
+			if err = compiler_compile(c, data[k]); err != "" do return
+		}
+
+		emit(c, .Ht, len(data) * 2)
+
 
 	case int:
 		emit(c, .Cnst, add_constant(c, data))

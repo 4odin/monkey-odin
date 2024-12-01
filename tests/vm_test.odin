@@ -14,6 +14,7 @@ VM_Test_Union :: union {
 	bool,
 	string,
 	[]int,
+	map[string]int,
 }
 
 VM_Test_Case :: struct {
@@ -52,6 +53,32 @@ test_expected_object :: proc(expected: VM_Test_Union, actual: m.Object_Base) -> 
 
 		for expected_el, i in expected_value {
 			if err = test_integer_object(expected_el, arr[i]); err != "" do break
+		}
+
+	case map[string]int:
+		ht, ok := actual.(^m.Obj_Hash_Table)
+		if !ok {
+			err = fmt.tprintf("object is not hash table, got='%v'", m.obj_type(actual))
+			break
+		}
+
+		if len(ht) != len(expected_value) {
+			err = fmt.tprintf(
+				"wrong num of pairs. want='%d', got='%d'",
+				len(expected_value),
+				len(ht),
+			)
+			break
+		}
+
+		for key, value in expected_value {
+			actual_value, key_exists := ht[key]
+			if !key_exists {
+				err = fmt.tprintf("key '%s' does not exists in the hash table", key)
+				break
+			}
+
+			if err = test_integer_object(value, actual_value); err != "" do break
 		}
 
 	case nil:
@@ -228,6 +255,20 @@ test_vm_array_literals :: proc(t: ^testing.T) {
 		{"[]", []int{}},
 		{"[1, 2, 3]", []int{1, 2, 3}},
 		{"[1 + 2, 3 * 4, 5 + 6]", []int{3, 12, 11}},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_hash_table_literals :: proc(t: ^testing.T) {
+	context.allocator = context.temp_allocator
+	tests := []VM_Test_Case {
+		{"{}", map[string]int{}},
+		{`{"navid": 1, "bob": 2}`, map[string]int{"navid" = 1, "bob" = 2}},
+		{`{"navid": 2 * 2, "bob":  4 + 4}`, map[string]int{"navid" = 4, "bob" = 8}},
 	}
 
 	defer free_all(context.temp_allocator)

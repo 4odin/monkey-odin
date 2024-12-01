@@ -9,6 +9,7 @@ Instructions :: distinct [dynamic]byte
 Opcode :: enum byte {
 	Cnst,
 	Arr,
+	Ht,
 	Pop,
 	Add,
 	Sub,
@@ -36,6 +37,7 @@ Definition :: struct {
 definitions := [Opcode]Definition {
 	.Cnst       = {"OpConstant", {2}},
 	.Arr        = {"OpArray", {2}},
+	.Ht         = {"OpHashTable", {2}},
 	.Pop        = {"OpPop", {}},
 	.Add        = {"OpAdd", {}},
 	.Sub        = {"OpSub", {}},

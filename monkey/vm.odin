@@ -14,6 +14,7 @@ GLOBALS_SIZE :: 65536
 Dap_Item :: union {
 	[]Object_Base,
 	Obj_Array,
+	Obj_Hash_Table,
 }
 
 VM :: struct {
@@ -54,6 +55,9 @@ vm :: proc(allocator := context.allocator) -> VM {
 					delete(kind)
 
 				case Obj_Array:
+					delete(kind)
+
+				case Obj_Hash_Table:
 					delete(kind)
 				}
 			}
@@ -104,6 +108,17 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			v.sp = v.sp - num_elements
 
 			if err = vm_push(v, array); err != "" do return
+
+		case .Ht:
+			num_elements := int(read_u16(v.instructions[ip + 1:]))
+			ip += 2
+
+			ht: Object_Base
+			if ht, err = vm_build_hash_table(v, v.sp - num_elements, v.sp); err != "" do return
+
+			v.sp = v.sp - num_elements
+
+			if err = vm_push(v, ht); err != "" do return
 
 		case .Add, .Sub, .Mul, .Div:
 			if err = vm_exec_bin_op(v, op); err != "" do return
@@ -157,6 +172,25 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_build_hash_table :: proc(v: ^VM, start_index, end_index: int) -> (Object_Base, string) {
+	ht := utils.register_in_pool(&v.managed, Obj_Hash_Table, (end_index - start_index) / 2)
+
+	for i := start_index; i < end_index; i += 2 {
+		key := v.stack[i]
+		value := v.stack[i + 1]
+
+		key_str, key_is_valid := key.(string)
+		if !key_is_valid {
+			return nil, "some error"
+		}
+
+		ht[st.clone(key_str, v._pool)] = value
+	}
+
+	return ht, ""
 }
 
 @(private = "file")

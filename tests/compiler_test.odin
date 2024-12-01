@@ -76,7 +76,7 @@ test_constants :: proc(expected: []any, actual: []m.Object_Base) -> (err: string
 		}
 
 		if err != "" {
-			return fmt.tprintf("constant '%d' - testing '%s' object failed with: %v", t, i, err)
+			return fmt.tprintf("constant '%v' - testing '%v' object failed with: %v", i, t, err)
 		}
 	}
 
@@ -475,6 +475,52 @@ test_compile_array_literals :: proc(t: ^testing.T) {
 				m.instructions(context.temp_allocator, .Cnst, 5),
 				m.instructions(context.temp_allocator, .Mul),
 				m.instructions(context.temp_allocator, .Arr, 3),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_hash_table_literals :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"{}",
+			{},
+			{
+				m.instructions(context.temp_allocator, .Ht, 0),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			`{"name": "Navid", "index": 1}`,
+			{"name", "Navid", "index", 1},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Cnst, 3),
+				m.instructions(context.temp_allocator, .Ht, 4),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			`{"navid": 1 + 2, "bob": 3 * 4}`,
+			{"navid", 1, 2, "bob", 3, 4},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Add),
+				m.instructions(context.temp_allocator, .Cnst, 3),
+				m.instructions(context.temp_allocator, .Cnst, 4),
+				m.instructions(context.temp_allocator, .Cnst, 5),
+				m.instructions(context.temp_allocator, .Mul),
+				m.instructions(context.temp_allocator, .Ht, 4),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
