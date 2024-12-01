@@ -158,9 +158,9 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1; 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Pop),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
@@ -168,7 +168,7 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"-1",
 			{1},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Neg),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -177,8 +177,8 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1 + 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Add),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -187,8 +187,8 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1 - 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Sub),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -197,8 +197,8 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1 * 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Mul),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -207,8 +207,8 @@ test_compile_integer_arithmetic :: proc(t: ^testing.T) {
 			"1 / 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Div),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -252,8 +252,8 @@ test_compile_boolean_expressions :: proc(t: ^testing.T) {
 			"1 > 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Gt),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -262,8 +262,8 @@ test_compile_boolean_expressions :: proc(t: ^testing.T) {
 			"1 < 2",
 			{2, 1},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Gt),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -272,8 +272,8 @@ test_compile_boolean_expressions :: proc(t: ^testing.T) {
 			"1 == 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Eq),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -282,8 +282,8 @@ test_compile_boolean_expressions :: proc(t: ^testing.T) {
 			"1 != 2",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Neq),
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -327,7 +327,7 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0001
 				m.instructions(context.temp_allocator, .Jmp_If_Not, 10),
 				// 0004
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				// 0007
 				m.instructions(context.temp_allocator, .Jmp, 11),
 				// 0010
@@ -335,7 +335,7 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0011
 				m.instructions(context.temp_allocator, .Pop),
 				// 0012
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				// 0015
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -349,15 +349,15 @@ test_compile_if_expression :: proc(t: ^testing.T) {
 				// 0001
 				m.instructions(context.temp_allocator, .Jmp_If_Not, 10),
 				// 0004
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				// 0007
 				m.instructions(context.temp_allocator, .Jmp, 13),
 				// 0010
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				// 0013
 				m.instructions(context.temp_allocator, .Pop),
 				// 0014
-				m.instructions(context.temp_allocator, .Constant, 2),
+				m.instructions(context.temp_allocator, .Cnst, 2),
 				// 0017
 				m.instructions(context.temp_allocator, .Pop),
 			},
@@ -376,9 +376,9 @@ test_compile_global_let_statements :: proc(t: ^testing.T) {
 			"let one = 1; let two = 2;",
 			{1, 2},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Set_G, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Set_G, 1),
 			},
 		},
@@ -386,7 +386,7 @@ test_compile_global_let_statements :: proc(t: ^testing.T) {
 			"let one = 1; one;",
 			{1},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Set_G, 0),
 				m.instructions(context.temp_allocator, .Get_G, 0),
 				m.instructions(context.temp_allocator, .Pop),
@@ -396,7 +396,7 @@ test_compile_global_let_statements :: proc(t: ^testing.T) {
 			"let one = 1; let two = one; two;",
 			{1},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Set_G, 0),
 				m.instructions(context.temp_allocator, .Get_G, 0),
 				m.instructions(context.temp_allocator, .Set_G, 1),
@@ -418,7 +418,7 @@ test_compile_string_expressions :: proc(t: ^testing.T) {
 			`"monkey"`,
 			{"monkey"},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
+				m.instructions(context.temp_allocator, .Cnst, 0),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},
@@ -426,9 +426,55 @@ test_compile_string_expressions :: proc(t: ^testing.T) {
 			`"mon" + "key"`,
 			{"mon", "key"},
 			{
-				m.instructions(context.temp_allocator, .Constant, 0),
-				m.instructions(context.temp_allocator, .Constant, 1),
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
 				m.instructions(context.temp_allocator, .Add),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_compiler_tests(t, tests[:])
+}
+
+@(test)
+test_compile_array_literals :: proc(t: ^testing.T) {
+	tests := [?]Compiler_Test_Case {
+		{
+			"[]",
+			{},
+			{
+				m.instructions(context.temp_allocator, .Arr, 0),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"[1, 2, 3]",
+			{1, 2, 3},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Arr, 3),
+				m.instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"[1 + 2, 3 - 4, 5 * 6]",
+			{1, 2, 3, 4, 5, 6},
+			{
+				m.instructions(context.temp_allocator, .Cnst, 0),
+				m.instructions(context.temp_allocator, .Cnst, 1),
+				m.instructions(context.temp_allocator, .Add),
+				m.instructions(context.temp_allocator, .Cnst, 2),
+				m.instructions(context.temp_allocator, .Cnst, 3),
+				m.instructions(context.temp_allocator, .Sub),
+				m.instructions(context.temp_allocator, .Cnst, 4),
+				m.instructions(context.temp_allocator, .Cnst, 5),
+				m.instructions(context.temp_allocator, .Mul),
+				m.instructions(context.temp_allocator, .Arr, 3),
 				m.instructions(context.temp_allocator, .Pop),
 			},
 		},

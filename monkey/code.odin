@@ -7,7 +7,8 @@ import st "core:strings"
 Instructions :: distinct [dynamic]byte
 
 Opcode :: enum byte {
-	Constant,
+	Cnst,
+	Arr,
 	Pop,
 	Add,
 	Sub,
@@ -33,7 +34,8 @@ Definition :: struct {
 }
 
 definitions := [Opcode]Definition {
-	.Constant   = {"OpConstant", {2}},
+	.Cnst       = {"OpConstant", {2}},
+	.Arr        = {"OpArray", {2}},
 	.Pop        = {"OpPop", {}},
 	.Add        = {"OpAdd", {}},
 	.Sub        = {"OpSub", {}},

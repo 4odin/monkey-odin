@@ -8,26 +8,51 @@ import m "../monkey"
 
 import "core:testing"
 
-VM_Test_Case :: struct {
-	input:    string,
-	expected: any,
+@(private = "file")
+VM_Test_Union :: union {
+	int,
+	bool,
+	string,
+	[]int,
 }
 
-test_expected_object :: proc(expected: any, actual: m.Object_Base) -> (err: string) {
+VM_Test_Case :: struct {
+	input:    string,
+	expected: VM_Test_Union,
+}
+
+test_expected_object :: proc(expected: VM_Test_Union, actual: m.Object_Base) -> (err: string) {
 	err = ""
-	_, t := reflect.any_data(expected)
-	switch t {
+	t := reflect.union_variant_typeid(expected)
+	switch expected_value in expected {
 	case int:
-		expected_value, _ := reflect.as_int(expected)
 		err = test_integer_object(expected_value, actual)
 
 	case bool:
-		expected_value, _ := reflect.as_bool(expected)
 		err = test_boolean_object(expected_value, actual)
 
 	case string:
-		expected_value, _ := reflect.as_string(expected)
 		err = test_string_object(expected_value, actual)
+
+	case []int:
+		arr, ok := actual.(^m.Obj_Array)
+		if !ok {
+			err = fmt.tprintf("object is not array, got='%v'", m.obj_type(actual))
+			break
+		}
+
+		if len(arr) != len(expected_value) {
+			err = fmt.tprintf(
+				"wrong num of elements. want='%d', got='%d'",
+				len(expected_value),
+				len(arr),
+			)
+			break
+		}
+
+		for expected_el, i in expected_value {
+			if err = test_integer_object(expected_el, arr[i]); err != "" do break
+		}
 
 	case nil:
 		if m.obj_type(actual) != m.Obj_Null {
@@ -190,6 +215,19 @@ test_vm_string_expressions :: proc(t: ^testing.T) {
 		{`"monkey`, "monkey"},
 		{`"mon" + "key"`, "monkey"},
 		{`"mon" + "key" + "banana"`, "monkeybanana"},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_array_literals :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{"[]", []int{}},
+		{"[1, 2, 3]", []int{1, 2, 3}},
+		{"[1 + 2, 3 * 4, 5 + 6]", []int{3, 12, 11}},
 	}
 
 	defer free_all(context.temp_allocator)

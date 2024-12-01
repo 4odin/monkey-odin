@@ -13,6 +13,7 @@ GLOBALS_SIZE :: 65536
 @(private = "file")
 Dap_Item :: union {
 	[]Object_Base,
+	Obj_Array,
 }
 
 VM :: struct {
@@ -51,6 +52,9 @@ vm :: proc(allocator := context.allocator) -> VM {
 				switch kind in element {
 				case []Object_Base:
 					delete(kind)
+
+				case Obj_Array:
+					delete(kind)
 				}
 			}
 		}),
@@ -86,11 +90,20 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 		op := Opcode(v.instructions[ip])
 
 		switch op {
-		case .Constant:
+		case .Cnst:
 			const_idx := read_u16(v.instructions[ip + 1:])
 			ip += 2
 
 			if err = vm_push(v, v.constants[const_idx]); err != "" do return
+
+		case .Arr:
+			num_elements := int(read_u16(v.instructions[ip + 1:]))
+			ip += 2
+
+			array := vm_build_array(v, v.sp - num_elements, v.sp)
+			v.sp = v.sp - num_elements
+
+			if err = vm_push(v, array); err != "" do return
 
 		case .Add, .Sub, .Mul, .Div:
 			if err = vm_exec_bin_op(v, op); err != "" do return
@@ -144,6 +157,17 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_build_array :: proc(v: ^VM, start_index, end_index: int) -> Object_Base {
+	elements := utils.register_in_pool(&v.managed, Obj_Array, end_index - start_index)
+
+	for i := start_index; i < end_index; i += 1 {
+		append(elements, v.stack[i])
+	}
+
+	return elements
 }
 
 @(private = "file")

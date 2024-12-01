@@ -281,15 +281,22 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			}
 		}
 
+	case Node_Array_Literal:
+		for el in data {
+			if err = compiler_compile(c, el); err != "" do return
+		}
+
+		emit(c, .Arr, len(data))
+
 	case int:
-		emit(c, .Constant, add_constant(c, data))
+		emit(c, .Cnst, add_constant(c, data))
 
 	case bool:
 		emit(c, .True if data else .False)
 
 	case string:
 		string_cpy, _ := st.clone(data, c._pool)
-		emit(c, .Constant, add_constant(c, string_cpy))
+		emit(c, .Cnst, add_constant(c, string_cpy))
 	}
 
 	return
