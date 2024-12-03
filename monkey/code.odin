@@ -4,7 +4,7 @@ import "core:encoding/endian"
 import "core:fmt"
 import st "core:strings"
 
-Instructions :: distinct [dynamic]byte
+Instructions :: [dynamic]byte
 
 Opcode :: enum byte {
 	Cnst,
@@ -50,7 +50,7 @@ definitions := [Opcode]Definition {
 	.Mul        = {"OpMul", {}},
 	.Div        = {"OpDiv", {}},
 	.Idx        = {"OpIndex", {}},
-	.Call       = {"OpCall", {}},
+	.Call       = {"OpCall", {1}},
 	.Ret_V      = {"OpReturnValue", {}},
 	.Ret        = {"OpReturn", {}},
 	.True       = {"OpTrue", {}},

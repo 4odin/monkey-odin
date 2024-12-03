@@ -82,11 +82,11 @@ test_constants :: proc(expected: []Test_Data, actual: []m.Object_Base) -> (err: 
 			err = test_string_object(constant_value, actual[i])
 
 		case []m.Instructions:
-			fn, ok := actual[i].(^m.Obj_Compiled_Fn_Obj)
+			fn, ok := actual[i].(m.Obj_Compiled_Fn_Obj)
 			if !ok {
 				err = fmt.tprintf("not a function: '%v'", m.obj_type(actual[i]))
 			} else {
-				err = test_instructions(constant_value, fn[:])
+				err = test_instructions(constant_value, fn.instructions[:])
 			}
 		}
 
@@ -671,7 +671,7 @@ test_compile_function_calls :: proc(t: ^testing.T) {
 			},
 			{
 				m.make_instructions(context.temp_allocator, .Cnst, 1), // the compiled function
-				m.make_instructions(context.temp_allocator, .Call),
+				m.make_instructions(context.temp_allocator, .Call, 0),
 				m.make_instructions(context.temp_allocator, .Pop),
 			},
 		},
@@ -688,7 +688,51 @@ test_compile_function_calls :: proc(t: ^testing.T) {
 				m.make_instructions(context.temp_allocator, .Cnst, 1), // the compiled function
 				m.make_instructions(context.temp_allocator, .Set_G, 0),
 				m.make_instructions(context.temp_allocator, .Get_G, 0),
-				m.make_instructions(context.temp_allocator, .Call),
+				m.make_instructions(context.temp_allocator, .Call, 0),
+				m.make_instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"let one_arg = fn (a) { a }; one_arg(24);",
+			{
+				[]m.Instructions {
+					m.make_instructions(context.temp_allocator, .Get_L, 0),
+					m.make_instructions(context.temp_allocator, .Ret_V),
+				},
+				24,
+			},
+			{
+				m.make_instructions(context.temp_allocator, .Cnst, 0),
+				m.make_instructions(context.temp_allocator, .Set_G, 0),
+				m.make_instructions(context.temp_allocator, .Get_G, 0),
+				m.make_instructions(context.temp_allocator, .Cnst, 1),
+				m.make_instructions(context.temp_allocator, .Call, 1),
+				m.make_instructions(context.temp_allocator, .Pop),
+			},
+		},
+		{
+			"let many_args = fn (a, b, c) { a; b; c }; many_args(24, 25, 26);",
+			{
+				[]m.Instructions {
+					m.make_instructions(context.temp_allocator, .Get_L, 0),
+					m.make_instructions(context.temp_allocator, .Pop),
+					m.make_instructions(context.temp_allocator, .Get_L, 1),
+					m.make_instructions(context.temp_allocator, .Pop),
+					m.make_instructions(context.temp_allocator, .Get_L, 2),
+					m.make_instructions(context.temp_allocator, .Ret_V),
+				},
+				24,
+				25,
+				26,
+			},
+			{
+				m.make_instructions(context.temp_allocator, .Cnst, 0),
+				m.make_instructions(context.temp_allocator, .Set_G, 0),
+				m.make_instructions(context.temp_allocator, .Get_G, 0),
+				m.make_instructions(context.temp_allocator, .Cnst, 1),
+				m.make_instructions(context.temp_allocator, .Cnst, 2),
+				m.make_instructions(context.temp_allocator, .Cnst, 3),
+				m.make_instructions(context.temp_allocator, .Call, 3),
 				m.make_instructions(context.temp_allocator, .Pop),
 			},
 		},

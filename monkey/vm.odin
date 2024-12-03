@@ -92,7 +92,7 @@ vm_init :: proc(
 		v.frames = utils.register_in_pool(&v.managed, []Frame, MAX_FRAMES)
 
 		v.frames_index = 0
-		vm_push_frame(v, frame(bytecode.instructions))
+		vm_push_frame(v, frame(bytecode.instructions, 0))
 	}
 
 	v.constants = bytecode.constants
@@ -150,26 +150,22 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 			if err = vm_exec_idx_expr(v, operand, index); err != "" do return
 
 		case .Call:
-			fn, ok := v.stack[v.sp - 1].(^Obj_Compiled_Fn_Obj)
-			if !ok {
-				st.builder_reset(&v._sb)
-				fmt.sbprintf(&v._sb, "non-function call: '%v'", ast_type(v.stack[v.sp - 1]))
-				return st.to_string(v._sb)
-			}
+			num_args := read_u8(ins[ip + 1:])
+			vm_current_frame(v).ip += 1
 
-			vm_push_frame(v, frame(fn[:]))
+			if err = vm_call_function(v, int(num_args)); err != "" do return
 
 		case .Ret_V:
 			ret_val := vm_pop(v)
 
-			vm_pop_frame(v)
-			vm_pop(v)
+			frame := vm_pop_frame(v)
+			v.sp = frame.base_pointer - 1
 
 			if err = vm_push(v, ret_val); err != "" do return
 
 		case .Ret:
-			vm_pop_frame(v)
-			vm_pop(v)
+			frame := vm_pop_frame(v)
+			v.sp = frame.base_pointer - 1
 
 			if err = vm_push(v, Obj_Null{}); err != "" do return
 
@@ -207,6 +203,22 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 
 			if err = vm_push(v, v.compiler_state.globals[global_index]); err != "" do return
 
+		case .Set_L:
+			local_index := read_u8(ins[ip + 1:])
+			vm_current_frame(v).ip += 1
+
+			frame := vm_current_frame(v)
+
+			v.stack[frame.base_pointer + int(local_index)] = vm_pop(v)
+
+		case .Get_L:
+			local_index := read_u8(ins[ip + 1:])
+			vm_current_frame(v).ip += 1
+
+			frame := vm_current_frame(v)
+
+			if err = vm_push(v, v.stack[frame.base_pointer + int(local_index)]); err != "" do return
+
 		case .Nil:
 			if err = vm_push(v, Obj_Null{}); err != "" do return
 
@@ -220,6 +232,34 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 			vm_pop(v)
 		}
 	}
+
+	return ""
+}
+
+@(private = "file")
+vm_call_function :: proc(v: ^VM, num_args: int) -> (err: string) {
+	fn, ok := v.stack[v.sp - 1 - int(num_args)].(Obj_Compiled_Fn_Obj)
+	if !ok {
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(&v._sb, "non-function call: '%v'", ast_type(v.stack[v.sp - 1]))
+		return st.to_string(v._sb)
+	}
+
+	if num_args != fn.num_parameters {
+		st.builder_reset(&v._sb)
+		fmt.sbprintf(
+			&v._sb,
+			"wring number of arguments: want='%d', got='%d'",
+			fn.num_parameters,
+			num_args,
+		)
+		return st.to_string(v._sb)
+	}
+
+	frame := frame(fn.instructions[:], v.sp - num_args)
+
+	vm_push_frame(v, frame)
+	v.sp = frame.base_pointer + fn.num_locals
 
 	return ""
 }

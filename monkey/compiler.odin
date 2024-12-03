@@ -375,28 +375,44 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 	case Node_Function_Literal:
 		compiler_enter_scope(c)
+
+		for param in data.parameters {
+			c.symbol_table->define(param.value)
+		}
+
 		if err = compiler_compile(c, data.body); err != "" do return
 
 		if last_instruction_is(c, .Pop) do replace_last_pop_with_return(c)
 
 		if !last_instruction_is(c, .Ret_V) do compiler_emit(c, .Ret)
 
+		num_locals := len(c.symbol_table.store)
+
 		instructions := compiler_leave_scope(c)
-		compiled_fn := utils.register_in_pool(
-			&c.compiler_state.managed,
-			Obj_Compiled_Fn_Obj,
-			len(instructions),
-		)
+		compiled_fn := Obj_Compiled_Fn_Obj {
+			instructions   = utils.register_in_pool(
+				&c.compiler_state.managed,
+				Instructions,
+				len(instructions),
+			),
+			num_locals     = num_locals,
+			num_parameters = len(data.parameters),
+		}
 
 		if len(instructions) > 0 {
-			inject_at(compiled_fn, 0, ..instructions[:])
+			inject_at(compiled_fn.instructions, 0, ..instructions[:])
 		}
 
 		compiler_emit(c, .Cnst, add_constant(c, compiled_fn))
 
 	case Node_Call_Expression:
 		if err = compiler_compile(c, data.function^); err != "" do return
-		compiler_emit(c, .Call)
+
+		for arg in data.arguments {
+			if err = compiler_compile(c, arg); err != "" do return
+		}
+
+		compiler_emit(c, .Call, len(data.arguments))
 
 	case int:
 		compiler_emit(c, .Cnst, add_constant(c, data))

@@ -359,8 +359,10 @@ test_vm_first_class_functions :: proc(t: ^testing.T) {
 	tests := []VM_Test_Case {
 		{
 			`
-	let return_one = fn() { 1; };
-	let return_one_returner = fn() { return_one };
+	let return_one_returner = fn() { 
+		let return_one = fn() { 1; };
+		return_one 
+	};
 	return_one_returner()();
 		`,
 			1,
@@ -370,4 +372,143 @@ test_vm_first_class_functions :: proc(t: ^testing.T) {
 	defer free_all(context.temp_allocator)
 
 	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_calling_functions_with_bindings :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{`
+	let one = fn() { let one = 1; one };
+	one()
+		`, 1},
+		{`let one_and_two = fn() { let one = 1; let two = 2; one + two };
+			one_and_two()`, 3},
+		{
+			`let one_and_two = fn() { let one = 1; let two = 2; one + two; };
+		  let three_and_four = fn() { let three = 3; let four = 4; three + four; };
+		  one_and_two() + three_and_four()`,
+			10,
+		},
+		{
+			`let first_foobar = fn() { let foobar = 50; foobar; };
+			 let second_foobar = fn() { let foobar = 100; foobar; };
+			 first_foobar() + second_foobar()`,
+			150,
+		},
+		{
+			`
+			let global_seed = 50;
+			let minus_one = fn() {
+				let num = 1;
+				global_seed - num;
+			};
+			let minus_two = fn() {
+				let num = 2;
+				global_seed - num;
+			};
+			minus_one() + minus_two()
+			`,
+			97,
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_calling_functions_with_arguments_and_bindings :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{`
+	let identity = fn(a) { a };
+	identity(4)
+		`, 4},
+		{`let sum = fn(a, b) { a + b };
+		  sum(1, 2)`, 3},
+		{`let sum = fn(a, b) {
+ 			 let c = a + b;
+			 c
+		  };
+		  sum(1, 2)`, 3},
+		{`let sum = fn(a, b) {
+		 	 let c = a + b;
+			 c
+		  };
+		  sum(1, 2) + sum(3, 4)`, 10},
+		{
+			`let sum = fn(a, b) {
+				let c = a + b;
+				c
+		  	 };
+		  	 let outer = fn() {
+		  		sum(1, 2) + sum(3, 4)
+		  	 };
+		  	 outer()`,
+			10,
+		},
+		{
+			`
+			let global_num = 10;
+
+			let sum = fn(a, b) {
+				let c = a + b;
+				c + global_num
+			};
+
+			let outer = fn() {
+				sum(1, 2) + sum(3, 4) + global_num
+			};
+
+			outer() + global_num
+		  	 `,
+			50,
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_calling_functions_with_wrong_arguments :: proc(t: ^testing.T) {
+	tests := []string{"fn() { 1; }(1);", "fn(a) { a; }();", "fn(a, b) { a + b; }(1)"}
+
+	for input, i in tests {
+		p := m.parser()
+		p->init()
+		defer p->mem_free()
+
+		program := p->parse(input)
+		if len(p.errors) > 0 {
+			for err in p.errors do log.errorf("test[%d] has failed, parser error: %s", i, err)
+			continue
+		}
+
+		compiler_state := m.compiler_state()
+		compiler_state->init()
+		defer compiler_state->free()
+
+		compiler := m.compiler()
+		compiler->init(&compiler_state)
+		defer compiler->mem_free()
+
+		err := compiler->compile(program)
+		if err != "" {
+			log.errorf("test[%d] has failed, compiler has error: %s", i, err)
+			continue
+		}
+
+		vm := m.vm()
+		vm->init(compiler->bytecode(), &compiler_state)
+		defer vm->mem_free()
+
+		err = vm->run()
+		if err == "" {
+			log.errorf("test[%d] has failed, vm must return error", i)
+			testing.fail(t)
+			continue
+		}
+	}
 }

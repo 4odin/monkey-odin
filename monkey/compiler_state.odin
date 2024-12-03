@@ -6,7 +6,7 @@ import "../utils"
 
 @(private = "file")
 Dap_Item :: union {
-	Obj_Compiled_Fn_Obj,
+	Instructions,
 	Obj_Array,
 	Obj_Hash_Table,
 	^Symbol_Table,
@@ -31,7 +31,7 @@ compiler_state :: proc() -> Compiler_State {
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for item in dyn_pool {
 				switch kind in item {
-				case Obj_Compiled_Fn_Obj:
+				case Instructions:
 					delete(kind)
 
 				case Obj_Array:
