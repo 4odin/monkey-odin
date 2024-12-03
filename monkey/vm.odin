@@ -1,40 +1,49 @@
 package monkey_odin
 
 import "core:fmt"
+import "core:log"
 import "core:mem"
 import st "core:strings"
 
 import "../utils"
 
+_ :: log
+
 STACK_SIZE :: 2048
 
 GLOBALS_SIZE :: 65536
 
+MAX_FRAMES :: 1024
+
 @(private = "file")
 Dap_Item :: union {
 	[]Object_Base,
-	Obj_Array,
-	Obj_Hash_Table,
+	[]Frame,
 }
 
 VM :: struct {
-	instructions:           []byte,
 	constants:              []Object_Base,
 
 	// storage
-	globals:                ^[]Object_Base,
+	compiler_state:         ^Compiler_State,
+
+	// frame
+	frames:                 ^[]Frame,
+	frames_index:           int,
 
 	// stack
 	stack:                  ^[]Object_Base,
 	sp:                     int, // always points to the next value. Top of the stack is stack[sp-1]
 
 	// methods
-	config:                 proc(
+	init:                   proc(
 		v: ^VM,
+		bytecode: Bytecode,
+		compiler_state: ^Compiler_State,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	run:                    proc(v: ^VM, bytecode: Bytecode) -> (err: string),
+	run:                    proc(v: ^VM) -> (err: string),
 	stack_top:              proc(v: ^VM) -> Object_Base,
 	last_popped_stack_elem: proc(v: ^VM) -> Object_Base,
 
@@ -44,7 +53,7 @@ VM :: struct {
 
 vm :: proc(allocator := context.allocator) -> VM {
 	return {
-		config = vm_config,
+		init = vm_init,
 		run = vm_run,
 		stack_top = vm_stack_top,
 		last_popped_stack_elem = vm_last_popped_stack_elem,
@@ -54,10 +63,7 @@ vm :: proc(allocator := context.allocator) -> VM {
 				case []Object_Base:
 					delete(kind)
 
-				case Obj_Array:
-					delete(kind)
-
-				case Obj_Hash_Table:
+				case []Frame:
 					delete(kind)
 				}
 			}
@@ -70,39 +76,53 @@ vm :: proc(allocator := context.allocator) -> VM {
 // ***************************************************************************************
 
 @(private = "file")
-vm_config :: proc(
+vm_init :: proc(
 	v: ^VM,
+	bytecode: Bytecode,
+	compiler_state: ^Compiler_State,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
-	err := v->mem_config(pool_reserved_block_size, dyn_arr_reserved)
+	err := v->mem_init(pool_reserved_block_size, dyn_arr_reserved)
+
+	v.compiler_state = compiler_state
 
 	if err == .None {
 		v.stack = utils.register_in_pool(&v.managed, []Object_Base, STACK_SIZE)
-		v.globals = utils.register_in_pool(&v.managed, []Object_Base, GLOBALS_SIZE)
+		v.frames = utils.register_in_pool(&v.managed, []Frame, MAX_FRAMES)
+
+		v.frames_index = 0
+		vm_push_frame(v, frame(bytecode.instructions))
 	}
+
+	v.constants = bytecode.constants
 
 	return err
 }
 
 @(private = "file")
-vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
-	v.instructions = bytecode.instructions
-	v.constants = bytecode.constants
+vm_run :: proc(v: ^VM) -> (err: string) {
+	ip: int
+	ins: []byte
+	op: Opcode
 
-	for ip := 0; ip < len(v.instructions); ip += 1 {
-		op := Opcode(v.instructions[ip])
+	for vm_current_frame(v).ip < len(vm_current_frame(v).instructions) - 1 {
+		vm_current_frame(v).ip += 1
 
-		switch op {
+		ip = vm_current_frame(v).ip
+		ins = vm_current_frame(v).instructions
+		op = Opcode(ins[ip])
+
+		#partial switch op {
 		case .Cnst:
-			const_idx := read_u16(v.instructions[ip + 1:])
-			ip += 2
+			const_idx := read_u16(ins[ip + 1:])
+			vm_current_frame(v).ip += 2
 
 			if err = vm_push(v, v.constants[const_idx]); err != "" do return
 
 		case .Arr:
-			num_elements := int(read_u16(v.instructions[ip + 1:]))
-			ip += 2
+			num_elements := int(read_u16(ins[ip + 1:]))
+			vm_current_frame(v).ip += 2
 
 			array := vm_build_array(v, v.sp - num_elements, v.sp)
 			v.sp = v.sp - num_elements
@@ -110,8 +130,8 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			if err = vm_push(v, array); err != "" do return
 
 		case .Ht:
-			num_elements := int(read_u16(v.instructions[ip + 1:]))
-			ip += 2
+			num_elements := int(read_u16(ins[ip + 1:]))
+			vm_current_frame(v).ip += 2
 
 			ht: Object_Base
 			if ht, err = vm_build_hash_table(v, v.sp - num_elements, v.sp); err != "" do return
@@ -129,6 +149,30 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 
 			if err = vm_exec_idx_expr(v, operand, index); err != "" do return
 
+		case .Call:
+			fn, ok := v.stack[v.sp - 1].(^Obj_Compiled_Fn_Obj)
+			if !ok {
+				st.builder_reset(&v._sb)
+				fmt.sbprintf(&v._sb, "non-function call: '%v'", ast_type(v.stack[v.sp - 1]))
+				return st.to_string(v._sb)
+			}
+
+			vm_push_frame(v, frame(fn[:]))
+
+		case .Ret_V:
+			ret_val := vm_pop(v)
+
+			vm_pop_frame(v)
+			vm_pop(v)
+
+			if err = vm_push(v, ret_val); err != "" do return
+
+		case .Ret:
+			vm_pop_frame(v)
+			vm_pop(v)
+
+			if err = vm_push(v, Obj_Null{}); err != "" do return
+
 		case .Eq, .Neq, .Gt:
 			if err = vm_exec_comp(v, op); err != "" do return
 
@@ -139,29 +183,29 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 			if err = vm_exec_neg_op(v); err != "" do return
 
 		case .Jmp:
-			pos := int(read_u16(v.instructions[ip + 1:]))
-			ip = pos - 1
+			pos := int(read_u16(ins[ip + 1:]))
+			vm_current_frame(v).ip = pos - 1
 
 		case .Jmp_If_Not:
-			pos := int(read_u16(v.instructions[ip + 1:]))
-			ip += 2
+			pos := int(read_u16(ins[ip + 1:]))
+			vm_current_frame(v).ip += 2
 
 			condition := vm_pop(v)
 			if !obj_is_truthy(condition) {
-				ip = pos - 1
+				vm_current_frame(v).ip = pos - 1
 			}
 
 		case .Set_G:
-			global_index := read_u16(v.instructions[ip + 1:])
-			ip += 2
+			global_index := read_u16(ins[ip + 1:])
+			vm_current_frame(v).ip += 2
 
-			v.globals[global_index] = vm_pop(v)
+			v.compiler_state.globals[global_index] = vm_pop(v)
 
 		case .Get_G:
-			global_index := read_u16(v.instructions[ip + 1:])
-			ip += 2
+			global_index := read_u16(ins[ip + 1:])
+			vm_current_frame(v).ip += 2
 
-			if err = vm_push(v, v.globals[global_index]); err != "" do return
+			if err = vm_push(v, v.compiler_state.globals[global_index]); err != "" do return
 
 		case .Nil:
 			if err = vm_push(v, Obj_Null{}); err != "" do return
@@ -178,6 +222,23 @@ vm_run :: proc(v: ^VM, bytecode: Bytecode) -> (err: string) {
 	}
 
 	return ""
+}
+
+@(private = "file")
+vm_current_frame :: proc(v: ^VM) -> ^Frame {
+	return &v.frames[v.frames_index - 1]
+}
+
+@(private = "file")
+vm_push_frame :: proc(v: ^VM, f: Frame) {
+	v.frames[v.frames_index] = f
+	v.frames_index += 1
+}
+
+@(private = "file")
+vm_pop_frame :: proc(v: ^VM) -> ^Frame {
+	v.frames_index -= 1
+	return &v.frames[v.frames_index]
 }
 
 @(private = "file")
@@ -213,7 +274,11 @@ vm_exec_idx_expr :: proc(v: ^VM, operand, index: Object_Base) -> (err: string) {
 
 @(private = "file")
 vm_build_hash_table :: proc(v: ^VM, start_index, end_index: int) -> (Object_Base, string) {
-	ht := utils.register_in_pool(&v.managed, Obj_Hash_Table, (end_index - start_index) / 2)
+	ht := utils.register_in_pool(
+		&v.compiler_state.managed,
+		Obj_Hash_Table,
+		(end_index - start_index) / 2,
+	)
 
 	for i := start_index; i < end_index; i += 2 {
 		key := v.stack[i]
@@ -234,7 +299,11 @@ vm_build_hash_table :: proc(v: ^VM, start_index, end_index: int) -> (Object_Base
 
 @(private = "file")
 vm_build_array :: proc(v: ^VM, start_index, end_index: int) -> Object_Base {
-	elements := utils.register_in_pool(&v.managed, Obj_Array, end_index - start_index)
+	elements := utils.register_in_pool(
+		&v.compiler_state.managed,
+		Obj_Array,
+		end_index - start_index,
+	)
 
 	for i := start_index; i < end_index; i += 1 {
 		append(elements, v.stack[i])
@@ -379,11 +448,8 @@ vm_exec_bin_op :: proc(v: ^VM, op: Opcode) -> (err: string) {
 	right := vm_pop(v)
 	left := vm_pop(v)
 
-	right_val, right_is_int := right.(int)
-	left_val, left_is_int := left.(int)
-
-	if right_is_int && left_is_int {
-		return vm_exec_bin_int_op(v, op, left_val, right_val)
+	if obj_type(right) == int && obj_type(left) == int {
+		return vm_exec_bin_int_op(v, op, left.(int), right.(int))
 	} else if obj_type(right) == string && obj_type(left) == string {
 		return vm_exec_bin_str_op(v, op, left.(string), right.(string))
 	}

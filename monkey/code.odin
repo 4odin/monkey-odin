@@ -16,6 +16,9 @@ Opcode :: enum byte {
 	Mul,
 	Div,
 	Idx,
+	Call,
+	Ret_V,
+	Ret,
 	True,
 	False,
 	Eq,
@@ -28,6 +31,8 @@ Opcode :: enum byte {
 	Nil,
 	Get_G,
 	Set_G,
+	Get_L,
+	Set_L,
 }
 
 Definition :: struct {
@@ -45,6 +50,9 @@ definitions := [Opcode]Definition {
 	.Mul        = {"OpMul", {}},
 	.Div        = {"OpDiv", {}},
 	.Idx        = {"OpIndex", {}},
+	.Call       = {"OpCall", {}},
+	.Ret_V      = {"OpReturnValue", {}},
+	.Ret        = {"OpReturn", {}},
 	.True       = {"OpTrue", {}},
 	.False      = {"OpFalse", {}},
 	.Eq         = {"OpEqual", {}},
@@ -57,6 +65,8 @@ definitions := [Opcode]Definition {
 	.Nil        = {"OpNil", {}},
 	.Get_G      = {"OpGetGlobal", {2}},
 	.Set_G      = {"OpSetGlobal", {2}},
+	.Get_L      = {"OpGetLocal", {1}},
+	.Set_L      = {"OpSetLocal", {1}},
 }
 
 lookup :: proc(op: Opcode) -> (Definition, bool) {
@@ -67,7 +77,11 @@ lookup :: proc(op: Opcode) -> (Definition, bool) {
 	return def, true
 }
 
-instructions :: proc(allocator := context.allocator, op: Opcode, operands: ..int) -> Instructions {
+make_instructions :: proc(
+	allocator := context.allocator,
+	op: Opcode,
+	operands: ..int,
+) -> Instructions {
 	def, ok := lookup(op)
 	if !ok do return {}
 
@@ -85,6 +99,9 @@ instructions :: proc(allocator := context.allocator, op: Opcode, operands: ..int
 		switch width {
 		case 2:
 			endian.put_u16(instruction[offset:], .Big, u16(o))
+
+		case 1:
+			instruction[offset] = byte(o)
 		}
 		offset += width
 	}
@@ -159,8 +176,10 @@ read_operands :: proc(
 	for width, i in def.operand_widths {
 		switch width {
 		case 2:
-			val := read_u16(ins[offset:])
-			operands[i] = int(val)
+			operands[i] = int(read_u16(ins[offset:]))
+
+		case 1:
+			operands[i] = int(read_u8(ins[offset:]))
 		}
 
 		offset += width
@@ -173,4 +192,8 @@ read_u16 :: proc(ins: []byte) -> u16 {
 	res, _ := endian.get_u16(ins, .Big)
 
 	return res
+}
+
+read_u8 :: proc(ins: []byte) -> u8 {
+	return u8(ins[0])
 }

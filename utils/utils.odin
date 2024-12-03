@@ -1,12 +1,14 @@
 package monkey_utils
 
 import "base:intrinsics"
+import "core:log"
 import "core:mem"
 import vmem "core:mem/virtual"
 import st "core:strings"
 
 _ :: mem
 _ :: vmem
+_ :: log
 
 // Struct to be used for subtyping other structs when the target type has needs internal
 // memories which cannot or should not be mixed with context.temp_allocator or other memory pools
@@ -27,8 +29,8 @@ Mem_Manager :: struct($Union_Element: typeid) where intrinsics.type_is_union(Uni
 	_sb:                    st.Builder,
 
 	// methods
-	mem_init:               proc(m: ^Mem_Manager(Union_Element)) -> mem.Allocator_Error,
-	mem_config:             proc(
+	mem_set:                proc(m: ^Mem_Manager(Union_Element)) -> mem.Allocator_Error,
+	mem_init:               proc(
 		m: ^Mem_Manager(Union_Element),
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
@@ -46,7 +48,7 @@ mem_manager :: proc(
 ) -> Mem_Manager(Union_Element) where intrinsics.type_is_union(Union_Element) {
 	return {
 		// methods
-		mem_init = proc(m: ^Mem_Manager(Union_Element)) -> mem.Allocator_Error {
+		mem_set = proc(m: ^Mem_Manager(Union_Element)) -> mem.Allocator_Error {
 			err := vmem.arena_init_growing(&m._arena, m._arena_reserved)
 			if err == .None {
 				m._pool = vmem.arena_allocator(&m._arena)
@@ -66,7 +68,7 @@ mem_manager :: proc(
 
 			return err
 		},
-		mem_config = proc(
+		mem_init = proc(
 			m: ^Mem_Manager(Union_Element),
 			pool_reserved_block_size: uint = 1 * mem.Megabyte,
 			dyn_arr_reserved: uint = 10,
@@ -74,7 +76,7 @@ mem_manager :: proc(
 			m._arena_reserved = pool_reserved_block_size
 			m._dyn_arr_pool_reserved = dyn_arr_reserved
 
-			err := m->mem_init()
+			err := m->mem_set()
 
 			return err
 		},
@@ -106,11 +108,16 @@ mem_manager :: proc(
 	}
 }
 
+register_in_pool :: proc {
+	register_in_pool_make,
+	register_in_pool_new,
+}
+
 // Must be used to register dynamic arrays, maps and allocated slices or any distinct
 // aliases for them in the pool
 //
 // Note: &<your subtipe>.managed must be sent
-register_in_pool :: proc(
+register_in_pool_make :: proc(
 	m: ^Mem_Manager($U),
 	$T: typeid,
 	reserved := 0,
@@ -132,4 +139,18 @@ register_in_pool :: proc(
 	}
 
 	return &m._dyn_arr_pool[len(m._dyn_arr_pool) - 1].(T)
+}
+
+// Must be used to register other types with `new_clone`ing it
+//
+// Note: &<your subtipe>.managed must be sent
+register_in_pool_new :: proc(
+	m: ^Mem_Manager($U),
+	el: $T,
+) -> T where !intrinsics.type_is_dynamic_array(T) &&
+	!intrinsics.type_is_slice(T) &&
+	!intrinsics.type_is_map(T) {
+	append(&m._dyn_arr_pool, el)
+
+	return m._dyn_arr_pool[len(m._dyn_arr_pool) - 1].(T)
 }

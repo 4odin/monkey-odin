@@ -17,6 +17,8 @@ Obj_Builtin_Fn :: #type proc(e: ^Evaluator, args: [dynamic]Object_Base) -> (Obje
 
 Obj_Array :: distinct [dynamic]Object_Base
 
+Obj_Compiled_Fn_Obj :: distinct Instructions
+
 Object_Base :: union {
 	int,
 	bool,
@@ -28,6 +30,7 @@ Object_Base :: union {
 	Obj_Builtin_Fn,
 	^Obj_Array,
 	^Obj_Hash_Table,
+	^Obj_Compiled_Fn_Obj,
 }
 
 Object_Return :: distinct Object_Base
@@ -152,5 +155,8 @@ _obj_inspect_ptr :: proc(obj: ^Object, sb: ^st.Builder) {
 			i += 1
 		}
 		fmt.sbprint(sb, " }")
+
+	case ^Obj_Compiled_Fn_Obj:
+		fmt.sbprint(sb, "(compiled function)")
 	}
 }

@@ -17,7 +17,7 @@ evaluate_is_valid_get_evaluator :: proc(
 	bool,
 ) {
 	p := m.parser()
-	p->config()
+	p->init()
 	defer p->mem_free()
 
 	program := p->parse(input)
@@ -28,7 +28,7 @@ evaluate_is_valid_get_evaluator :: proc(
 	}
 
 	e := new_clone(m.evaluator())
-	e->config()
+	e->init()
 
 	evaluated, ok := e->eval(program, context.temp_allocator)
 	if !ok {

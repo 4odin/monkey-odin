@@ -28,7 +28,7 @@ Evaluator :: struct {
 		Object_Base,
 		bool,
 	),
-	config:        proc(
+	init:        proc(
 		e: ^Evaluator,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	) -> mem.Allocator_Error,
@@ -41,7 +41,7 @@ Evaluator :: struct {
 evaluator :: proc() -> Evaluator {
 	return {
 		eval = eval_program_statements,
-		config = evaluator_config,
+		init = evaluator_init,
 		free = evaluator_free,
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
@@ -61,11 +61,11 @@ evaluator :: proc() -> Evaluator {
 // ***************************************************************************************
 
 @(private = "file")
-evaluator_config :: proc(
+evaluator_init :: proc(
 	e: ^Evaluator,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 ) -> mem.Allocator_Error {
-	err := e->mem_config(pool_reserved_block_size)
+	err := e->mem_init(pool_reserved_block_size)
 
 	e._env = environment()
 
@@ -608,7 +608,7 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 
 				if len(arr) > 0 {
 					new_arr := utils.register_in_pool(&e.managed, Obj_Array, len(arr) - 1)
-					copy(new_arr[:], arr[1:])
+					inject_at(new_arr, 0, ..arr[1:])
 
 					return new_arr, true
 				}

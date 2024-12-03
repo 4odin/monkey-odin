@@ -115,7 +115,7 @@ let foobar = y;
 
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -160,7 +160,7 @@ return 993322;
 
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -206,7 +206,7 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 	input := "foobar;"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -244,7 +244,7 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 	input := "5;"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -281,7 +281,7 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 	input := "true;"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -318,7 +318,7 @@ test_parsing_string_literal :: proc(t: ^testing.T) {
 	input := `"hello world";`
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -366,7 +366,7 @@ prefix_test_case_is_ok :: proc(
 	operand_value: Literal,
 ) -> bool {
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -482,7 +482,7 @@ infix_test_case_is_valid :: proc(
 	right_value: Literal,
 ) -> bool {
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -546,7 +546,7 @@ test_parsing_infix_expressions :: proc(t: ^testing.T) {
 
 ast_string_is_valid :: proc(input: string, expected: string) -> bool {
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -583,7 +583,7 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 	input := "if x < y { x }"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -643,7 +643,7 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 	input := "if x < y { x } else { y }"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -714,7 +714,7 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 	input := "fn(x, y) { x + y; }"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -785,7 +785,7 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 	input := "add(1, 2 * 3, 4 + 5);"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -850,7 +850,7 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 	input := "[1, 2 * 2, 3 + 3]"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -909,7 +909,7 @@ test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 	input := `{"one": 1, "two": 2, "three": 3}`
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -973,7 +973,7 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 	input := `{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}`
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -1044,7 +1044,7 @@ test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
 	input := "{}"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(
@@ -1088,7 +1088,7 @@ test_parsing_index_expression :: proc(t: ^testing.T) {
 	input := "my_array[1 + 1]"
 
 	p := m.parser()
-	p->config()
+	p->init()
 
 	defer if ok, arena, dyn_arr_pool := p->mem_is_freed(); !ok {
 		log.errorf(

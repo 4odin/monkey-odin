@@ -9,7 +9,7 @@ import m "../monkey"
 import "core:testing"
 
 @(private = "file")
-VM_Test_Union :: union {
+Test_Data :: union {
 	int,
 	bool,
 	string,
@@ -19,10 +19,10 @@ VM_Test_Union :: union {
 
 VM_Test_Case :: struct {
 	input:    string,
-	expected: VM_Test_Union,
+	expected: Test_Data,
 }
 
-test_expected_object :: proc(expected: VM_Test_Union, actual: m.Object_Base) -> (err: string) {
+test_expected_object :: proc(expected: Test_Data, actual: m.Object_Base) -> (err: string) {
 	err = ""
 	t := reflect.union_variant_typeid(expected)
 	switch expected_value in expected {
@@ -98,7 +98,7 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 	for test_case, i in tests {
 		{
 			p := m.parser()
-			p->config()
+			p->init()
 			defer p->mem_free()
 
 			program := p->parse(test_case.input)
@@ -109,9 +109,13 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 				continue
 			}
 
+			compiler_state := m.compiler_state()
+			compiler_state->init()
+			defer compiler_state->free()
+
 			compiler := m.compiler()
-			compiler->config()
-			defer compiler->free()
+			compiler->init(&compiler_state)
+			defer compiler->mem_free()
 
 			err := compiler->compile(program)
 			if err != "" {
@@ -121,10 +125,10 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 			}
 
 			vm := m.vm()
-			vm->config()
+			vm->init(compiler->bytecode(), &compiler_state)
 			defer vm->mem_free()
 
-			err = vm->run(compiler->bytecode())
+			err = vm->run()
 			if err != "" {
 				log.errorf("test[%d] has failed, vm has error: %s", i, err)
 				testing.fail(t)
@@ -288,6 +292,79 @@ test_vm_index_expressios :: proc(t: ^testing.T) {
 		{`{"name": "Navid"}["name"]`, "Navid"},
 		{`{"name": "Navid"}["age"]`, nil},
 		{`{}["name"]`, nil},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_calling_functions_without_arguments :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{`
+	let five_plus_ten = fn() { 5 + 10; };
+	five_plus_ten();
+		`, 15},
+		{`
+		let one = fn() { 1; };
+		let two = fn() { 2; };
+		one() + two()
+			`, 3},
+		{`	let a = fn() { 1; };
+	let b = fn() { a() + 1 };
+	let c = fn() { b() + 1 };
+	c()
+		`, 3},
+		{`
+	let no_return = fn() {};
+	no_return();
+			`, nil},
+		{
+			`
+	let no_return = fn() {};
+	let no_return_two = fn() { no_return(); };
+	no_return();
+	no_return_two();
+			`,
+			nil,
+		},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_calling_functions_with_return_statements :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{`
+	let early_exit = fn() { return 99; 100; };
+	early_exit();
+		`, 99},
+		{`
+	let early_exit = fn() { return 99; return 100; };
+	early_exit();
+		`, 99},
+	}
+
+	defer free_all(context.temp_allocator)
+
+	run_vm_tests(t, tests)
+}
+
+@(test)
+test_vm_first_class_functions :: proc(t: ^testing.T) {
+	tests := []VM_Test_Case {
+		{
+			`
+	let return_one = fn() { 1; };
+	let return_one_returner = fn() { return_one };
+	return_one_returner()();
+		`,
+			1,
+		},
 	}
 
 	defer free_all(context.temp_allocator)

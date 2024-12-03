@@ -12,6 +12,9 @@ _ :: mem
 
 PROMPT :: ">"
 QUIT_CMD :: ":q"
+SYM_CMD :: ":sym"
+GL_CMD :: ":gl"
+C_CMD :: ":c"
 
 main :: proc() {
 	when ODIN_DEBUG {
@@ -73,8 +76,6 @@ main :: proc() {
 
 	parser := monkey.parser()
 	evaluator := monkey.evaluator()
-	compiler := monkey.compiler()
-	vm := monkey.vm()
 
 	when ODIN_DEBUG {
 		// before context allocators, report on any other virtual memory based instances
@@ -94,22 +95,6 @@ main :: proc() {
 					dyn_arr_pool,
 				)
 			}
-
-			if ok, arena, dyn_arr_pool := compiler->mem_is_freed(); !ok {
-				fmt.eprintfln(
-					"compiler has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
-					arena,
-					dyn_arr_pool,
-				)
-			}
-
-			if ok, arena, dyn_arr_pool := vm->mem_is_freed(); !ok {
-				fmt.eprintfln(
-					"vm has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
-					arena,
-					dyn_arr_pool,
-				)
-			}
 		}
 	}
 
@@ -122,17 +107,15 @@ main :: proc() {
 
 	defer free_all(context.temp_allocator)
 
-	parser->config()
+	parser->init()
 	defer parser->mem_free()
 
-	evaluator->config()
+	evaluator->init()
 	defer evaluator->free()
 
-	compiler->config()
-	defer compiler->free()
-
-	vm->config()
-	defer vm->mem_free()
+	state := monkey.compiler_state()
+	state->init()
+	defer state->free()
 
 	for {
 		fmt.printf("%s%s ", username, PROMPT)
@@ -147,10 +130,20 @@ main :: proc() {
 		input := string(buf[:])
 
 		if input[:len(QUIT_CMD)] == QUIT_CMD do return
+		else if input[:len(SYM_CMD)] == SYM_CMD {
+			fmt.printfln("Symbol Table:\n%v", state.symbol_table.store)
+			continue
+		} else if input[:len(GL_CMD)] == GL_CMD {
+			fmt.printfln("Globals:\n%v", state.globals)
+			continue
+		} else if input[:len(C_CMD)] == C_CMD {
+			fmt.printfln("Constants:\n%v", state.constants)
+			continue
+		} else if buf[0] == 13 do continue
 
 		program := parser->parse(input)
 		{
-			defer compiler->reset()
+			defer parser->mem_free()
 
 			if len(parser.errors) > 0 {
 				print_errors(parser.errors)
@@ -160,7 +153,7 @@ main :: proc() {
 
 			st.builder_reset(&sb)
 			monkey.ast_to_string(program, &sb)
-			fmt.printfln("Ast: %v", st.to_string(sb))
+			fmt.printfln("Ast to string: %v", st.to_string(sb))
 
 			evaluated, ok := evaluator->eval(program, context.temp_allocator)
 			if !ok {
@@ -169,8 +162,11 @@ main :: proc() {
 				st.builder_reset(&sb)
 				monkey.obj_inspect(evaluated, &sb)
 
-				fmt.printfln("Evaluator Result: %v", st.to_string(sb))
+				fmt.printfln("Evaluator result: %v", st.to_string(sb))
 			}
+
+			compiler := monkey.compiler()
+			compiler->init(&state)
 
 			err := compiler->compile(program)
 			if err != "" {
@@ -178,7 +174,34 @@ main :: proc() {
 				continue
 			}
 
-			err = vm->run(compiler->bytecode())
+			vm := monkey.vm()
+			vm->init(compiler->bytecode(), &state)
+
+			when ODIN_DEBUG {
+				// before context allocators, report on any other virtual memory based instances
+				defer {
+					if mem_is_freed, arena, dyn_arr_pool := compiler->mem_is_freed();
+					   !mem_is_freed {
+						fmt.eprintfln(
+							"compiler has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
+							arena,
+							dyn_arr_pool,
+						)
+					}
+
+					if mem_is_freed, arena, dyn_arr_pool := vm->mem_is_freed(); !mem_is_freed {
+						fmt.eprintfln(
+							"vm has unfreed memory, arena total used: %v, dynamic array pool unremoved items: %d",
+							arena,
+							dyn_arr_pool,
+						)
+					}
+				}
+			}
+			defer compiler->mem_free()
+			defer vm->mem_free()
+
+			err = vm->run()
 			if err != "" {
 				fmt.printfln("Vm error: %s", err)
 				continue
@@ -188,7 +211,7 @@ main :: proc() {
 			st.builder_reset(&sb)
 			monkey.obj_inspect(last_popped, &sb)
 
-			fmt.printfln("Vm Result: %v", st.to_string(sb))
+			fmt.printfln("Vm result: %v", st.to_string(sb))
 		}
 	}
 }

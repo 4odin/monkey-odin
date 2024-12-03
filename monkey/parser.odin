@@ -24,7 +24,7 @@ Parser :: struct {
 	errors:        [dynamic]string,
 
 	// methods
-	config:        proc(
+	init:          proc(
 		p: ^Parser,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
@@ -39,7 +39,7 @@ Parser :: struct {
 parser :: proc() -> Parser {
 	return {
 		l = lexer(),
-		config = parser_config,
+		init = parser_init,
 		parse = parse_program,
 		clear_errors = parser_clear_errors,
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
@@ -170,12 +170,12 @@ expect_peek :: proc(p: ^Parser, t: Token_Type) -> bool {
 }
 
 @(private = "file")
-parser_config :: proc(
+parser_init :: proc(
 	p: ^Parser,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
-	err := p->mem_config(pool_reserved_block_size, dyn_arr_reserved)
+	err := p->mem_init(pool_reserved_block_size, dyn_arr_reserved)
 
 	if err == .None do p.errors.allocator = p._pool
 

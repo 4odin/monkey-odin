@@ -5,14 +5,17 @@ import "core:mem"
 import "core:slice"
 import st "core:strings"
 
+import "core:log"
+
 import "../utils"
 
 _ :: fmt
+_ :: log
 
 @(private = "file")
 Dap_Item :: union {
 	Instructions,
-	[dynamic]Object_Base,
+	[dynamic]Compilation_Scope,
 }
 
 Emitted_Instruction :: struct {
@@ -25,54 +28,54 @@ Bytecode :: struct {
 	constants:    []Object_Base,
 }
 
-Compiler :: struct {
+Compilation_Scope :: struct {
 	instructions:         ^Instructions,
-	constants:            ^[dynamic]Object_Base,
-	symbol_table:         Symbol_Table,
-
-	// tracking instructions
 	last_instruction:     Emitted_Instruction,
 	previous_instruction: Emitted_Instruction,
+}
+
+Compiler :: struct {
+	compiler_state: ^Compiler_State,
+
+	// current symbol table
+	symbol_table:   ^Symbol_Table,
+
+	// scopes
+	scopes:         ^[dynamic]Compilation_Scope,
+	scope_index:    int,
 
 	// methods
-	config:               proc(
+	init:           proc(
 		c: ^Compiler,
+		compiler_state: ^Compiler_State,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 		dyn_arr_reserved: uint = 10,
 	) -> mem.Allocator_Error,
-	compile:              proc(c: ^Compiler, program: Node_Program) -> (err: string),
-	bytecode:             proc(c: ^Compiler) -> Bytecode,
-	reset:                proc(c: ^Compiler, keep_state := true),
-	free:                 proc(c: ^Compiler),
+	compile:        proc(c: ^Compiler, program: Node_Program) -> (err: string),
+	emit:           proc(c: ^Compiler, op: Opcode, operands: ..int) -> int,
+	bytecode:       proc(c: ^Compiler) -> Bytecode,
+	enter_scope:    proc(c: ^Compiler),
+	leave_scope:    proc(c: ^Compiler) -> ^Instructions,
 
 	// Managed
-	using managed:        utils.Mem_Manager(Dap_Item),
+	using managed:  utils.Mem_Manager(Dap_Item),
 }
 
 compiler :: proc(allocator := context.allocator) -> Compiler {
 	return {
-		config = compiler_config,
+		init = compiler_init,
 		compile = compiler_compile_program,
+		emit = compiler_emit,
 		bytecode = compiler_bytecode,
-		reset = proc(c: ^Compiler, keep_state := true) {
-			clear(c.instructions)
-
-			if !keep_state {
-				clear(c.constants)
-				c.symbol_table->reset()
-			}
-		},
-		free = proc(c: ^Compiler) {
-			c->mem_free()
-			c.symbol_table->free()
-		},
+		enter_scope = compiler_enter_scope,
+		leave_scope = compiler_leave_scope,
 		managed = utils.mem_manager(Dap_Item, proc(dyn_pool: [dynamic]Dap_Item) {
 			for element in dyn_pool {
 				switch kind in element {
 				case Instructions:
 					delete(kind)
 
-				case [dynamic]Object_Base:
+				case [dynamic]Compilation_Scope:
 					delete(kind)
 				}
 			}
@@ -85,34 +88,71 @@ compiler :: proc(allocator := context.allocator) -> Compiler {
 // ***************************************************************************************
 
 @(private = "file")
-compiler_config :: proc(
+compiler_init :: proc(
 	c: ^Compiler,
+	compiler_state: ^Compiler_State,
 	pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	dyn_arr_reserved: uint = 10,
 ) -> mem.Allocator_Error {
-	err := c->mem_config(pool_reserved_block_size, dyn_arr_reserved)
+	err := c->mem_init(pool_reserved_block_size, dyn_arr_reserved)
 
-	c.symbol_table = symbol_table()
+	c.compiler_state = compiler_state
+	c.symbol_table = &compiler_state.symbol_table
 
 	if err == .None {
-		c.instructions = utils.register_in_pool(&c.managed, Instructions)
-		c.constants = utils.register_in_pool(&c.managed, [dynamic]Object_Base)
+		c.scopes = utils.register_in_pool(&c.managed, [dynamic]Compilation_Scope)
+
+		main_scope := Compilation_Scope{}
+		main_scope.instructions = utils.register_in_pool(&c.managed, Instructions)
+
+		append(c.scopes, main_scope)
 	}
 
 	return err
 }
 
 @(private = "file")
+compiler_enter_scope :: proc(c: ^Compiler) {
+	scope := Compilation_Scope{}
+	scope.instructions = utils.register_in_pool(&c.managed, Instructions)
+
+	append(c.scopes, scope)
+	c.scope_index = len(c.scopes) - 1
+
+	c.symbol_table = utils.register_in_pool(
+		&c.compiler_state.managed,
+		new_clone(symbol_table(c.compiler_state._pool, outer = c.symbol_table)),
+	)
+}
+
+@(private = "file")
+compiler_leave_scope :: proc(c: ^Compiler) -> ^Instructions {
+	instructions := current_instructions(c)
+
+	pop(c.scopes)
+	c.scope_index = len(c.scopes) - 1
+
+	c.symbol_table = c.symbol_table.outer
+
+	return instructions
+}
+
+@(private = "file")
+current_instructions :: proc(c: ^Compiler) -> ^Instructions {
+	return c.scopes[c.scope_index].instructions
+}
+
+@(private = "file")
 add_instructions :: proc(c: ^Compiler, ins: []byte) -> int {
-	pos := len(c.instructions)
-	append(c.instructions, ..ins)
+	pos := len(current_instructions(c))
+	append(current_instructions(c), ..ins)
 
 	return pos
 }
 
 @(private = "file")
-emit :: proc(c: ^Compiler, op: Opcode, operands: ..int) -> int {
-	ins := instructions(c._pool, Opcode(op), ..operands)
+compiler_emit :: proc(c: ^Compiler, op: Opcode, operands: ..int) -> int {
+	ins := make_instructions(c._pool, Opcode(op), ..operands)
 	pos := add_instructions(c, ins[:])
 
 	set_last_instruction(c, op, pos)
@@ -122,48 +162,65 @@ emit :: proc(c: ^Compiler, op: Opcode, operands: ..int) -> int {
 
 @(private = "file")
 set_last_instruction :: proc(c: ^Compiler, op: Opcode, pos: int) {
-	previous := c.last_instruction
+	previous := c.scopes[c.scope_index].last_instruction
 	last := Emitted_Instruction{op, pos}
 
-	c.previous_instruction = previous
-	c.last_instruction = last
+	c.scopes[c.scope_index].previous_instruction = previous
+	c.scopes[c.scope_index].last_instruction = last
 }
 
 @(private = "file")
-last_instruction_is_pop :: proc(c: ^Compiler) -> bool {
-	return c.last_instruction.op_code == .Pop
+last_instruction_is :: proc(c: ^Compiler, op: Opcode) -> bool {
+	if len(current_instructions(c)) == 0 do return false
+
+	return c.scopes[c.scope_index].last_instruction.op_code == op
 }
 
 @(private = "file")
 remove_last_pop :: proc(c: ^Compiler) {
-	unordered_remove(c.instructions, c.last_instruction.pos)
-	c.last_instruction = c.previous_instruction
+	ordered_remove(
+		c.scopes[c.scope_index].instructions,
+		c.scopes[c.scope_index].last_instruction.pos,
+	)
+
+	c.scopes[c.scope_index].last_instruction = c.scopes[c.scope_index].previous_instruction
 }
 
 @(private = "file")
 replace_instruction :: proc(c: ^Compiler, pos: int, new_instruction: []byte) {
+	ins := current_instructions(c)
+
 	for i := 0; i < len(new_instruction); i += 1 {
-		c.instructions[pos + i] = new_instruction[i]
+		ins[pos + i] = new_instruction[i]
 	}
 }
 
 @(private = "file")
+replace_last_pop_with_return :: proc(c: ^Compiler) {
+	last_pos := c.scopes[c.scope_index].last_instruction.pos
+
+	replace_instruction(c, last_pos, make_instructions(c.compiler_state._pool, .Ret_V)[:])
+
+	c.scopes[c.scope_index].last_instruction.op_code = .Ret_V
+}
+
+@(private = "file")
 change_operand :: proc(c: ^Compiler, op_pos: int, operand: int) {
-	op := Opcode(c.instructions[op_pos])
-	new_instruction := instructions(c._pool, op, operand)
+	op := Opcode(current_instructions(c)[op_pos])
+	new_instruction := make_instructions(c._pool, op, operand)
 
 	replace_instruction(c, op_pos, new_instruction[:])
 }
 
 @(private = "file")
 add_constant :: proc(c: ^Compiler, obj: Object_Base) -> int {
-	append(c.constants, obj)
-	return len(c.constants) - 1
+	append(&c.compiler_state.constants, obj)
+	return len(c.compiler_state.constants) - 1
 }
 
 @(private = "file")
 compiler_bytecode :: proc(c: ^Compiler) -> Bytecode {
-	return {instructions = c.instructions[:], constants = c.constants[:]}
+	return {instructions = current_instructions(c)[:], constants = c.compiler_state.constants[:]}
 }
 
 @(private = "file")
@@ -173,10 +230,14 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 	#partial switch data in ast {
 	case Node_Let_Statement:
 		if err = compiler_compile(c, data.value^); err != "" do return
-		sym_name_copy, _ := st.clone(data.name, c._pool)
-		symbol := c.symbol_table->define(sym_name_copy)
+		symbol := c.symbol_table->define(data.name)
 
-		emit(c, .Set_G, symbol.index)
+		compiler_emit(c, .Set_G if symbol.scope == .Global else .Set_L, symbol.index)
+
+	case Node_Return_Statement:
+		if err = compiler_compile(c, data.ret_val^); err != "" do return
+
+		compiler_emit(c, .Ret_V)
 
 	case Node_Identifier:
 		symbol, ok := c.symbol_table->resolve(data.value)
@@ -186,15 +247,14 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			err = st.to_string(c._sb)
 			return
 		}
-
-		emit(c, .Get_G, symbol.index)
+		compiler_emit(c, .Get_G if symbol.scope == .Global else .Get_L, symbol.index)
 
 	case Node_Infix_Expression:
 		if data.op == "<" {
 			if err = compiler_compile(c, data.right^); err != "" do return
 			if err = compiler_compile(c, data.left^); err != "" do return
 
-			emit(c, .Gt)
+			compiler_emit(c, .Gt)
 			return
 		}
 
@@ -203,25 +263,25 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 		switch data.op {
 		case "+":
-			emit(c, .Add)
+			compiler_emit(c, .Add)
 
 		case "-":
-			emit(c, .Sub)
+			compiler_emit(c, .Sub)
 
 		case "*":
-			emit(c, .Mul)
+			compiler_emit(c, .Mul)
 
 		case "/":
-			emit(c, .Div)
+			compiler_emit(c, .Div)
 
 		case ">":
-			emit(c, .Gt)
+			compiler_emit(c, .Gt)
 
 		case "==":
-			emit(c, .Eq)
+			compiler_emit(c, .Eq)
 
 		case "!=":
-			emit(c, .Neq)
+			compiler_emit(c, .Neq)
 
 		case:
 			st.builder_reset(&c._sb)
@@ -234,10 +294,10 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 
 		switch data.op {
 		case "!":
-			emit(c, .Not)
+			compiler_emit(c, .Not)
 
 		case "-":
-			emit(c, .Neg)
+			compiler_emit(c, .Neg)
 
 		case:
 			st.builder_reset(&c._sb)
@@ -249,28 +309,28 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 		if err = compiler_compile(c, data.condition^); err != "" do return
 
 		// Emit an `OpJumpIfNotTrue` with bogus value
-		jump_if_not_pos := emit(c, .Jmp_If_Not, 9999)
+		jump_if_not_pos := compiler_emit(c, .Jmp_If_Not, 9999)
 
 		if err = compiler_compile(c, data.consequence); err != "" do return
 
-		if last_instruction_is_pop(c) do remove_last_pop(c)
+		if last_instruction_is(c, .Pop) do remove_last_pop(c)
 
 		// Emit an `OpJump` with a bogus value
-		jump_pos := emit(c, .Jmp, 9999)
+		jump_pos := compiler_emit(c, .Jmp, 9999)
 
-		after_consequence_pos := len(c.instructions)
+		after_consequence_pos := len(current_instructions(c))
 		change_operand(c, jump_if_not_pos, after_consequence_pos)
 
 		if data.alternative == nil {
-			emit(c, .Nil)
+			compiler_emit(c, .Nil)
 		} else {
 			if err = compiler_compile(c, data.alternative); err != "" do return
 
-			if last_instruction_is_pop(c) do remove_last_pop(c)
+			if last_instruction_is(c, .Pop) do remove_last_pop(c)
 
 		}
 
-		after_alternative_pos := len(c.instructions)
+		after_alternative_pos := len(current_instructions(c))
 		change_operand(c, jump_pos, after_alternative_pos)
 
 	case Node_Block_Expression:
@@ -278,7 +338,7 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			if err = compiler_compile(c, s); err != "" do return
 
 			if ast_is_expression_statement(s) {
-				emit(c, .Pop)
+				compiler_emit(c, .Pop)
 			}
 		}
 
@@ -287,7 +347,7 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			if err = compiler_compile(c, el); err != "" do return
 		}
 
-		emit(c, .Arr, len(data))
+		compiler_emit(c, .Arr, len(data))
 
 	case Node_Hash_Table_Literal:
 		keys := make([]string, len(data), c._pool)
@@ -305,23 +365,48 @@ compiler_compile :: proc(c: ^Compiler, ast: Node) -> (err: string) {
 			if err = compiler_compile(c, data[k]); err != "" do return
 		}
 
-		emit(c, .Ht, len(data) * 2)
+		compiler_emit(c, .Ht, len(data) * 2)
 
 	case Node_Index_Expression:
 		if err = compiler_compile(c, data.operand^); err != "" do return
 		if err = compiler_compile(c, data.index^); err != "" do return
 
-		emit(c, .Idx)
+		compiler_emit(c, .Idx)
+
+	case Node_Function_Literal:
+		compiler_enter_scope(c)
+		if err = compiler_compile(c, data.body); err != "" do return
+
+		if last_instruction_is(c, .Pop) do replace_last_pop_with_return(c)
+
+		if !last_instruction_is(c, .Ret_V) do compiler_emit(c, .Ret)
+
+		instructions := compiler_leave_scope(c)
+		compiled_fn := utils.register_in_pool(
+			&c.compiler_state.managed,
+			Obj_Compiled_Fn_Obj,
+			len(instructions),
+		)
+
+		if len(instructions) > 0 {
+			inject_at(compiled_fn, 0, ..instructions[:])
+		}
+
+		compiler_emit(c, .Cnst, add_constant(c, compiled_fn))
+
+	case Node_Call_Expression:
+		if err = compiler_compile(c, data.function^); err != "" do return
+		compiler_emit(c, .Call)
 
 	case int:
-		emit(c, .Cnst, add_constant(c, data))
+		compiler_emit(c, .Cnst, add_constant(c, data))
 
 	case bool:
-		emit(c, .True if data else .False)
+		compiler_emit(c, .True if data else .False)
 
 	case string:
-		string_cpy, _ := st.clone(data, c._pool)
-		emit(c, .Cnst, add_constant(c, string_cpy))
+		string_cpy, _ := st.clone(data, c.compiler_state._pool)
+		compiler_emit(c, .Cnst, add_constant(c, string_cpy))
 	}
 
 	return
@@ -335,7 +420,7 @@ compiler_compile_program :: proc(c: ^Compiler, program: Node_Program) -> (err: s
 		if err = compiler_compile(c, s); err != "" do return
 
 		if ast_is_expression_statement(s) {
-			emit(c, .Pop)
+			compiler_emit(c, .Pop)
 		}
 	}
 
