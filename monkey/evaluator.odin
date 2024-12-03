@@ -12,9 +12,6 @@ Dap_Item :: union {
 	Obj_Hash_Table,
 }
 
-@(private = "file")
-NULL :: Obj_Null{}
-
 Evaluator :: struct {
 	// data storage
 	_env:          Environment,
@@ -28,7 +25,7 @@ Evaluator :: struct {
 		Object_Base,
 		bool,
 	),
-	init:        proc(
+	init:          proc(
 		e: ^Evaluator,
 		pool_reserved_block_size: uint = 1 * mem.Megabyte,
 	) -> mem.Allocator_Error,
@@ -639,7 +636,7 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 
 				append(arr, args[1])
 
-				return Obj_Null{}, true
+				return NULL, true
 			}
 
 	case "puts":
@@ -653,7 +650,7 @@ find_builtin_fn :: proc(name: string) -> Obj_Builtin_Fn {
 
 				fmt.print(st.to_string(e._sb))
 
-				return Obj_Null{}, true
+				return NULL, true
 			}
 	}
 

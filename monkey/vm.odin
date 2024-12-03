@@ -167,7 +167,7 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 			frame := vm_pop_frame(v)
 			v.sp = frame.base_pointer - 1
 
-			if err = vm_push(v, Obj_Null{}); err != "" do return
+			if err = vm_push(v, NULL); err != "" do return
 
 		case .Eq, .Neq, .Gt:
 			if err = vm_exec_comp(v, op); err != "" do return
@@ -220,7 +220,7 @@ vm_run :: proc(v: ^VM) -> (err: string) {
 			if err = vm_push(v, v.stack[frame.base_pointer + int(local_index)]); err != "" do return
 
 		case .Nil:
-			if err = vm_push(v, Obj_Null{}); err != "" do return
+			if err = vm_push(v, NULL); err != "" do return
 
 		case .True:
 			if err = vm_push(v, true); err != "" do return
@@ -285,7 +285,7 @@ vm_pop_frame :: proc(v: ^VM) -> ^Frame {
 vm_exec_ht_idx :: proc(v: ^VM, ht: ^Obj_Hash_Table, key: string) -> (err: string) {
 	value, key_exists := ht[key]
 
-	if !key_exists do return vm_push(v, Obj_Null{})
+	if !key_exists do return vm_push(v, NULL)
 
 	return vm_push(v, value)
 }
@@ -294,7 +294,7 @@ vm_exec_ht_idx :: proc(v: ^VM, ht: ^Obj_Hash_Table, key: string) -> (err: string
 vm_exec_arr_idx :: proc(v: ^VM, arr: ^Obj_Array, index: int) -> (err: string) {
 	max := len(arr) - 1
 
-	if index < 0 || index > max do return vm_push(v, Obj_Null{})
+	if index < 0 || index > max do return vm_push(v, NULL)
 
 	return vm_push(v, arr[index])
 }

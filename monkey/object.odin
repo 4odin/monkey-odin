@@ -4,6 +4,8 @@ import "core:fmt"
 import "core:reflect"
 import st "core:strings"
 
+NULL :: Obj_Null{}
+
 Obj_Null :: struct {}
 Obj_Function :: struct {
 	parameters: [dynamic]Node_Identifier,

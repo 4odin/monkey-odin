@@ -233,7 +233,7 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 
 @(test)
 test_eval_if_else_expression :: proc(t: ^testing.T) {
-	NULL :: m.Obj_Null{}
+	NULL :: m.NULL
 
 	tests := []struct {
 		input:    string,
