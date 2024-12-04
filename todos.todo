@@ -1,6 +1,2 @@
-Code Cleanups:
---	Comment codes and try out the odin doc
---	Cleanup any redundant commented codes
----	Organize tests, put all the reusable types and procedures in one file, mark the others private to their files
----	Complete readme file
+-----	Complete readme file
 

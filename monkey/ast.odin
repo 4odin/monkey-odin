@@ -357,5 +357,5 @@ ast_copy :: proc(ast: ^Node, allocator: mem.Allocator) -> Node {
 		}
 	}
 
-	panic("Node is not recognized")
+	unimplemented()
 }
