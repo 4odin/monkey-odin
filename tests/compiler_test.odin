@@ -133,7 +133,6 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 			if len(p.errors) > 0 {
 				for err in p.errors do log.errorf("test[%d] has failed, parser error: %s", i, err)
 
-				testing.fail(t)
 				continue
 			}
 
@@ -148,7 +147,6 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 			err := compiler->compile(program)
 			if err != "" {
 				log.errorf("test[%d] has failed, compiler has error: %s", i, err)
-				testing.fail(t)
 				continue
 			}
 
@@ -157,15 +155,12 @@ run_compiler_tests :: proc(t: ^testing.T, tests: []Compiler_Test_Case) {
 			err = test_instructions(test_case.expected_instructions[:], bytecode.instructions)
 			if err != "" {
 				log.errorf("test[%d] has failed, test instructions has failed with: %s", i, err)
-				testing.fail(t)
 				continue
 			}
 
 			err = test_constants(test_case.expected_constants, bytecode.constants)
 			if err != "" {
 				log.errorf("test[%d] has failed, test constants has failed with: %s", i, err)
-				testing.fail(t)
-				continue
 			}
 		}
 	}

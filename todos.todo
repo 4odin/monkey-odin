@@ -1,8 +1,6 @@
 Code Cleanups:
---- 	Fix redundant usage of testing.fail where log.errorf is sufficient
-	I've noticed any output in stderr is sufficient to make a test failure (I'm not sure yet)
-	Take advantage of testing.expect procedures as well
 --	Comment codes and try out the odin doc
 --	Cleanup any redundant commented codes
 ---	Organize tests, put all the reusable types and procedures in one file, mark the others private to their files
+---	Complete readme file
 

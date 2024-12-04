@@ -164,7 +164,6 @@ if 5 < 10 {
 				test_case.expected_type,
 				tok.type,
 			)
-			testing.fail(t)
 			continue
 		}
 
@@ -175,7 +174,6 @@ if 5 < 10 {
 				test_case.expected_literal,
 				string(tok.text_slice),
 			)
-			testing.fail(t)
 		}
 	}
 }

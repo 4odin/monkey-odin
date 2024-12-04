@@ -127,13 +127,11 @@ test_eval_integer_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -169,13 +167,11 @@ test_eval_boolean_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !boolean_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -191,13 +187,11 @@ test_eval_string_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !string_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -220,13 +214,11 @@ test_eval_bang_operator :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !boolean_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -252,7 +244,6 @@ test_eval_if_else_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
@@ -260,14 +251,15 @@ test_eval_if_else_expression :: proc(t: ^testing.T) {
 		case int:
 			if !integer_object_is_valid(evaluated, expected) {
 				log.errorf("test[%d] has failed", i)
-				testing.fail(t)
 			}
 
 		case m.Obj_Null:
 			if m.obj_type(evaluated) != m.Obj_Null {
-				log.errorf("object is not Obj_Null, got='%v'", m.obj_type(evaluated))
-				log.errorf("test[%d] has failed", i)
-				testing.fail(t)
+				log.errorf(
+					"test[%d] has failed, object is not Obj_Null, got='%v'",
+					i,
+					m.obj_type(evaluated),
+				)
 			}
 		}
 	}
@@ -300,13 +292,11 @@ test_eval_return_statement :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -327,13 +317,11 @@ test_eval_let_statements :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -348,15 +336,11 @@ test_eval_function_object :: proc(t: ^testing.T) {
 		free(e)
 	}
 
-	if !ok {
-		testing.fail(t)
-		return
-	}
+	if !ok do return
 
 	fn, is_fn := evaluated.(^m.Obj_Function)
 	if !is_fn {
 		log.errorf("object is not function. got='%v'", m.obj_type(evaluated))
-		testing.fail(t)
 		return
 	}
 
@@ -366,13 +350,11 @@ test_eval_function_object :: proc(t: ^testing.T) {
 			len(fn.parameters),
 			fn.parameters,
 		)
-		testing.fail(t)
 		return
 	}
 
 	if fn.parameters[0].value != "x" {
 		log.errorf("function's parameter is not 'x', got='%s'", fn.parameters[0])
-		testing.fail(t)
 		return
 	}
 
@@ -389,7 +371,6 @@ test_eval_function_object :: proc(t: ^testing.T) {
 			expected_body,
 			st.to_string(sb),
 		)
-		testing.fail(t)
 	}
 }
 
@@ -418,13 +399,11 @@ add_two(2)`, 4},
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -443,7 +422,6 @@ test_eval_builtin_functions :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
@@ -451,13 +429,11 @@ test_eval_builtin_functions :: proc(t: ^testing.T) {
 		case int:
 			if !integer_object_is_valid(evaluated, expected) {
 				log.errorf("test[%d] has failed", i)
-				testing.fail(t)
 			}
 
 		case string:
 			if !string_object_is_valid(evaluated, expected) {
 				log.errorf("test[%d] has failed", i)
-				testing.fail(t)
 			}
 		}
 
@@ -474,37 +450,29 @@ test_eval_array_literals :: proc(t: ^testing.T) {
 		free(e)
 	}
 
-	if !ok {
-		testing.fail(t)
-		return
-	}
+	if !ok do return
 
 	arr, is_arr := evaluated.(^m.Obj_Array)
 	if !is_arr {
 		log.errorf("expected array object but got '%v'", m.obj_type(evaluated))
-		testing.fail(t)
 		return
 	}
 
 	if len(arr) != 3 {
 		log.errorf("expected array length to be 3 but got='%d'", len(arr))
-		testing.fail(t)
 		return
 	}
 
 	if !integer_object_is_valid(arr[0], 1) {
 		log.errorf("arr[0] does not match")
-		testing.fail(t)
 	}
 
 	if !integer_object_is_valid(arr[1], 4) {
 		log.errorf("arr[1] does not match")
-		testing.fail(t)
 	}
 
 	if !integer_object_is_valid(arr[2], 6) {
 		log.errorf("arr[2] does not match")
-		testing.fail(t)
 	}
 }
 
@@ -524,15 +492,11 @@ test_eval_hash_literals :: proc(t: ^testing.T) {
 		free(e)
 	}
 
-	if !ok {
-		testing.fail(t)
-		return
-	}
+	if !ok do return
 
 	ht, is_hash_table := evaluated.(^m.Obj_Hash_Table)
 	if !is_hash_table {
 		log.errorf("expected hash table object but got '%v'", m.obj_type(evaluated))
-		testing.fail(t)
 		return
 	}
 
@@ -549,7 +513,6 @@ test_eval_hash_literals :: proc(t: ^testing.T) {
 			len(expected),
 			len(ht),
 		)
-		testing.fail(t)
 		return
 	}
 
@@ -557,12 +520,11 @@ test_eval_hash_literals :: proc(t: ^testing.T) {
 		value, key_exists := ht[expected_key]
 		if !key_exists {
 			log.errorf("key '%v' expected but does not exist", expected_key)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(value, expected_value) {
-			testing.fail(t)
+			log.errorf("key '%s' has wrong value", expected_key)
 		}
 	}
 }
@@ -587,13 +549,11 @@ test_eval_array_index_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -609,13 +569,11 @@ test_eval_hash_table_index_expression :: proc(t: ^testing.T) {
 		evaluated, ok := evalulation_is_valid(test_case.input)
 		if !ok {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 			continue
 		}
 
 		if !integer_object_is_valid(evaluated, test_case.expected) {
 			log.errorf("test[%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -655,9 +613,10 @@ test_eval_errors :: proc(t: ^testing.T) {
 	for input, i in inputs {
 		_, ok := evalulation_is_valid(input, false)
 		if ok {
-			log.errorf("test[%d] has failed, should not be ok", i)
-			testing.fail(t)
-			continue
+			log.errorf(
+				"test[%d] has failed, the input supposed to raise an error but it didn't",
+				i,
+			)
 		}
 	}
 }

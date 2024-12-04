@@ -130,21 +130,17 @@ let foobar = y;
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 3 {
 		log.errorf("program does not contain 3 statements, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	for test_case, i in tests {
 		if !stmt_is_let(program[i], test_case.expected_identifier, test_case.expected_value) {
-			testing.fail(t)
+			log.errorf("test [%d] has failed", i)
 		}
 	}
 }
@@ -175,15 +171,10 @@ return 993322;
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 3 {
 		log.errorf("program does not contain 3 statements, got='%v'", len(program))
-
-		testing.fail(t)
 		return
 	}
 
@@ -196,7 +187,6 @@ return 993322;
 		_, ok := stmt.(m.Node_Return_Statement)
 		if !ok {
 			log.errorf("test [%d]: stmt is not a return statement. got='%v'", i, m.ast_type(stmt))
-			continue
 		}
 	}
 }
@@ -221,22 +211,15 @@ test_parsing_identifier_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
-	if !identifier_is_valid(&program[0], "foobar") {
-		testing.fail(t)
-		return
-	}
+	identifier_is_valid(&program[0], "foobar")
 }
 
 @(test)
@@ -259,21 +242,15 @@ test_parsing_integer_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_valid(&program[0], 5) {
-		testing.fail(t)
-	}
+	literal_value_is_valid(&program[0], 5)
 }
 
 @(test)
@@ -296,21 +273,15 @@ test_parsing_boolean_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_valid(&program[0], true) {
-		testing.fail(t)
-	}
+	literal_value_is_valid(&program[0], true)
 }
 
 @(test)
@@ -333,15 +304,11 @@ test_parsing_string_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
@@ -349,13 +316,11 @@ test_parsing_string_literal :: proc(t: ^testing.T) {
 
 	if !str_ok {
 		log.errorf("expression is not string, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if literal != "hello world" {
 		log.errorf("string is not 'hello world', got='%s'", literal)
-		testing.fail(t)
 	}
 }
 
@@ -380,9 +345,7 @@ prefix_test_case_is_ok :: proc(
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		return false
-	}
+	if parser_has_error(p) do return false
 
 	if len(program) != 1 {
 		log.errorf(
@@ -440,7 +403,6 @@ test_parsing_prefix_expressions :: proc(t: ^testing.T) {
 			test_case.operand_value,
 		) {
 			log.errorf("Test [%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -495,9 +457,7 @@ infix_test_case_is_valid :: proc(
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		return false
-	}
+	if parser_has_error(p) do return false
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
@@ -539,7 +499,6 @@ test_parsing_infix_expressions :: proc(t: ^testing.T) {
 			test_case.right_value,
 		) {
 			log.errorf("Test [%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }
@@ -596,44 +555,35 @@ test_parsing_if_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_If_Expression)
 	if !ok {
 		log.errorf("program[0] is not Node_If_Expression, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if !infix_expression_is_valid(stmt.condition, "x", "<", "y") {
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt.consequence) != 1 {
 		log.errorf("consequence is not 1 statement, got='%d'", len(stmt.consequence))
-		testing.fail(t)
 		return
 	}
 
 	if !identifier_is_valid(&stmt.consequence[0], "x") {
-		testing.fail(t)
 		return
 	}
 
 	if stmt.alternative != nil {
 		log.errorf("alternative is not nil, got='%d'", len(stmt.alternative))
-		testing.fail(t)
 		return
 	}
 }
@@ -656,57 +606,40 @@ test_parsing_if_else_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_If_Expression)
 	if !ok {
 		log.errorf("program[0] is not Node_If_Expression, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
-	if !infix_expression_is_valid(stmt.condition, "x", "<", "y") {
-		testing.fail(t)
-		return
-	}
+	if !infix_expression_is_valid(stmt.condition, "x", "<", "y") do return
 
 	if len(stmt.consequence) != 1 {
 		log.errorf("consequence is not 1 statement, got='%d'", len(stmt.consequence))
-		testing.fail(t)
 		return
 	}
 
-	if !identifier_is_valid(&stmt.consequence[0], "x") {
-		testing.fail(t)
-		return
-	}
+	if !identifier_is_valid(&stmt.consequence[0], "x") do return
 
 	if stmt.alternative == nil {
 		log.errorf("alternative is nil")
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt.alternative) != 1 {
 		log.errorf("alternative is not 1 statement, got='%d'", len(stmt.alternative))
-		testing.fail(t)
 		return
 	}
 
-	if !identifier_is_valid(&stmt.alternative[0], "y") {
-		testing.fail(t)
-		return
-	}
+	identifier_is_valid(&stmt.alternative[0], "y")
 }
 
 @(test)
@@ -727,22 +660,17 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Function_Literal)
 	if !ok {
 		log.errorf("program[0] is not Node_Function_Literal, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
@@ -751,33 +679,26 @@ test_parsing_function_literal :: proc(t: ^testing.T) {
 			"function literal wrong number of parameters. expected='2', got='%d'",
 			len(stmt.parameters),
 		)
-		testing.fail(t)
 		return
 	}
 
 	if stmt.parameters[0].value != "x" {
 		log.errorf("expected first parameter to be 'x', got='%s'", stmt.parameters[0].value)
-		testing.fail(t)
 		return
 	}
 
 	if stmt.parameters[1].value != "y" {
 		log.errorf("expected first parameter to be 'x', got='%s'", stmt.parameters[1].value)
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt.body) != 1 {
 		log.errorf("function body does not contain 1 statement, got='%v'", len(stmt.body))
 
-		testing.fail(t)
 		return
 	}
 
-	if !infix_expression_is_valid(&stmt.body[0], "x", "+", "y") {
-		testing.fail(t)
-		return
-	}
+	infix_expression_is_valid(&stmt.body[0], "x", "+", "y")
 }
 
 @(test)
@@ -798,51 +719,31 @@ test_parsing_call_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Call_Expression)
 	if !ok {
 		log.errorf("program[0] is not Node_Call_Expression, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
-	if !identifier_is_valid(stmt.function, "add") {
-		testing.fail(t)
-		return
-	}
+	if !identifier_is_valid(stmt.function, "add") do return
 
 	if len(stmt.arguments) != 3 {
 		log.errorf("call expression does not contain 3 arguments, got='%v'", len(stmt.arguments))
 
-		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_valid(&stmt.arguments[0], 1) {
-		testing.fail(t)
-		return
-	}
-
-	if !infix_expression_is_valid(&stmt.arguments[1], 2, "*", 3) {
-		testing.fail(t)
-		return
-	}
-
-	if !infix_expression_is_valid(&stmt.arguments[2], 4, "+", 5) {
-		testing.fail(t)
-		return
-	}
+	literal_value_is_valid(&stmt.arguments[0], 1)
+	infix_expression_is_valid(&stmt.arguments[1], 2, "*", 3)
+	infix_expression_is_valid(&stmt.arguments[2], 4, "+", 5)
 }
 
 @(test)
@@ -863,45 +764,28 @@ test_parsing_array_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Array_Literal)
 	if !ok {
 		log.errorf("program[0] is not Node_Array_Literal, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt) != 3 {
 		log.errorf("length of the array is not 3, got='%d'", len(stmt))
-		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_valid(&stmt[0], 1) {
-		testing.fail(t)
-		return
-	}
-
-	if !infix_expression_is_valid(&stmt[1], 2, "*", 2) {
-		testing.fail(t)
-		return
-	}
-
-	if !infix_expression_is_valid(&stmt[2], 3, "+", 3) {
-		testing.fail(t)
-		return
-	}
+	literal_value_is_valid(&stmt[0], 1)
+	infix_expression_is_valid(&stmt[1], 2, "*", 2)
+	infix_expression_is_valid(&stmt[2], 3, "+", 3)
 }
 
 @(test)
@@ -922,28 +806,22 @@ test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
 		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt) != 3 {
 		log.errorf("length of the hash table is not 3, got='%d'", len(stmt))
-		testing.fail(t)
 		return
 	}
 
@@ -958,13 +836,10 @@ test_parsing_hash_table_literal :: proc(t: ^testing.T) {
 		value, key_exists := stmt[key]
 		if !key_exists {
 			log.errorf("key '%s' does not exist in the hash table", key)
-			testing.fail(t)
 			continue
 		}
 
-		if !literal_value_is_valid(&value, expected_value) {
-			testing.fail(t)
-		}
+		literal_value_is_valid(&value, expected_value)
 	}
 }
 
@@ -986,28 +861,22 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
 		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt) != 3 {
 		log.errorf("length of the hash table is not 3, got='%d'", len(stmt))
-		testing.fail(t)
 		return
 	}
 
@@ -1028,13 +897,11 @@ test_parsing_hash_table_literal_with_expressions :: proc(t: ^testing.T) {
 		value, key_exists := stmt[key]
 		if !key_exists {
 			log.errorf("key '%s' does not exist in the hash table", key)
-			testing.fail(t)
 			continue
 		}
 
 		if !test_fn(&value) {
 			log.errorf("test failed for the key '%s'", key)
-			testing.fail(t)
 		}
 	}
 }
@@ -1057,29 +924,22 @@ test_parsing_empty_hash_table_literal :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Hash_Table_Literal)
 	if !ok {
 		log.errorf("program[0] is not Node_Hash_Table_Literal, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
 	if len(stmt) != 0 {
 		log.errorf("length of the hash table is not 0, got='%d'", len(stmt))
-		testing.fail(t)
-		return
 	}
 }
 
@@ -1101,34 +961,22 @@ test_parsing_index_expression :: proc(t: ^testing.T) {
 
 	program := p->parse(input)
 
-	if parser_has_error(p) {
-		testing.fail(t)
-		return
-	}
+	if parser_has_error(p) do return
 
 	if len(program) != 1 {
 		log.errorf("program does not contain 1 statement, got='%v'", len(program))
 
-		testing.fail(t)
 		return
 	}
 
 	stmt, ok := program[0].(m.Node_Index_Expression)
 	if !ok {
 		log.errorf("program[0] is not Node_Index_Expression, got='%v'", m.ast_type(program[0]))
-		testing.fail(t)
 		return
 	}
 
-	if !literal_value_is_valid(stmt.operand, "my_array") {
-		testing.fail(t)
-		return
-	}
-
-	if !infix_expression_is_valid(stmt.index, 1, "+", 1) {
-		testing.fail(t)
-		return
-	}
+	literal_value_is_valid(stmt.operand, "my_array")
+	infix_expression_is_valid(stmt.index, 1, "+", 1)
 }
 
 @(test)
@@ -1175,7 +1023,6 @@ test_parsing_result_by_ast_to_string :: proc(t: ^testing.T) {
 	for test_case, i in tests {
 		if !ast_string_is_valid(test_case.input, test_case.expected) {
 			log.errorf("Test [%d] has failed", i)
-			testing.fail(t)
 		}
 	}
 }

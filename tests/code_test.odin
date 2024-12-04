@@ -44,7 +44,6 @@ test_code_make :: proc(t: ^testing.T) {
 				len(test_case.expected),
 				len(instruction),
 			)
-			testing.fail(t)
 			continue
 		}
 
@@ -57,8 +56,6 @@ test_code_make :: proc(t: ^testing.T) {
 					b,
 					instruction[idx],
 				)
-
-				testing.fail(t)
 			}
 		}
 	}

@@ -105,7 +105,6 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 			if len(p.errors) > 0 {
 				for err in p.errors do log.errorf("test[%d] has failed, parser error: %s", i, err)
 
-				testing.fail(t)
 				continue
 			}
 
@@ -120,7 +119,6 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 			err := compiler->compile(program)
 			if err != "" {
 				log.errorf("test[%d] has failed, compiler has error: %s", i, err)
-				testing.fail(t)
 				continue
 			}
 
@@ -131,7 +129,6 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 			err = vm->run()
 			if err != "" {
 				log.errorf("test[%d] has failed, vm has error: %s", i, err)
-				testing.fail(t)
 				continue
 			}
 
@@ -143,7 +140,6 @@ run_vm_tests :: proc(t: ^testing.T, tests: []VM_Test_Case) {
 					i,
 					err,
 				)
-				testing.fail(t)
 			}
 		}
 	}
@@ -506,9 +502,7 @@ test_vm_calling_functions_with_wrong_arguments :: proc(t: ^testing.T) {
 
 		err = vm->run()
 		if err == "" {
-			log.errorf("test[%d] has failed, vm must return error", i)
-			testing.fail(t)
-			continue
+			log.errorf("test[%d] has failed, vm supposed to return an error but it didn't", i)
 		}
 	}
 }
