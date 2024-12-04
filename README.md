@@ -1,6 +1,6 @@
 # Monkey Odin
 
-implementation of monkey lang from interpreter and compiler in go by Thorsten Ball.
+implementation of monkey lang (interpreter and compiler in go books by Thorsten Ball) in [Odin](https://odin-lang.org) programming language.
 
 ## License (for my odin implementation)
 
