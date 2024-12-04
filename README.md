@@ -6,6 +6,6 @@ implementation of monkey lang (interpreter and compiler in go books by Thorsten 
 
 Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0) License.
 
-Copyright (c) 2024, Navid Dezashibi <navid@dezashibi.com>
+Copyright (c) 2024, Navid Dezashibi
 
 Please refer to [LICENSE](/LICENSE) file.
